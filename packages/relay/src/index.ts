@@ -18,3 +18,18 @@ export { createLearnedRouter } from "./learned-router.js";
 export { createRouterFromConfig } from "./router.js";
 export type { RoutingConfig } from "./router.js";
 export type { LearnedRouterOptions } from "./learned-router.js";
+
+export { createWorkflowEngine } from "./workflow-engine.js";
+export type { LatticeWorkflowEngine, WorkflowRunResult } from "./workflow-engine.js";
+export { topoSort } from "./workflow-topo.js";
+export { evaluateCondition, resolveContextValue, resolveTemplate, applyDataMapping } from "./workflow-condition.js";
+export type {
+  WorkflowDefinition,
+  WorkflowNode,
+  WorkflowEdge,
+  WorkflowContext,
+  NodeOutput,
+  AgentTaskConfig,
+  ConditionConfig,
+  DataMapping,
+} from "./workflow-types.js";

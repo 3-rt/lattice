@@ -1,0 +1,35 @@
+{
+  "name": "Code Review",
+  "description": "Point to a PR, Claude Code reviews the code, OpenClaw sends a summary to the team.",
+  "definition": {
+    "nodes": [
+      {
+        "id": "review",
+        "type": "agent-task",
+        "label": "Review Code",
+        "config": {
+          "agent": "claude-code",
+          "taskTemplate": "{{prDescription}}"
+        }
+      },
+      {
+        "id": "summarize",
+        "type": "agent-task",
+        "label": "Send Summary",
+        "config": {
+          "agent": "openclaw",
+          "taskTemplate": "Code review completed. Summary of findings:\n\n{{reviewFindings}}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "review",
+        "target": "summarize",
+        "dataMapping": {
+          "artifacts[0].parts[0].text": "reviewFindings"
+        }
+      }
+    ]
+  }
+}
