@@ -1,0 +1,16 @@
+{
+  "name": "@lattice/adapter-claude-code",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lattice/adapter-base": "*",
+    "@anthropic-ai/claude-code": "^0.2.0"
+  },
+  "files": ["dist"]
+}
