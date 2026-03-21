@@ -11,3 +11,10 @@ export type { LatticeEventBus } from "./event-bus.js";
 export type { LatticeRegistry } from "./registry.js";
 export type { LatticeRouter } from "./router.js";
 export type { LatticeTaskManager } from "./task-manager.js";
+
+export { categorize, CATEGORY_MAP } from "./categorizer.js";
+export { betaSample, createSeededRandom } from "./beta-sample.js";
+export { createLearnedRouter } from "./learned-router.js";
+export { createRouterFromConfig } from "./router.js";
+export type { RoutingConfig } from "./router.js";
+export type { LearnedRouterOptions } from "./learned-router.js";
