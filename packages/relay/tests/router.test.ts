@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createRouter } from "../src/router.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createRouter, createRouterFromConfig } from "../src/router.js";
 import { createRegistry } from "../src/registry.js";
 import { createDatabase } from "../src/db.js";
 import { createEventBus } from "../src/event-bus.js";
@@ -75,5 +75,50 @@ describe("Router", () => {
     registry.register(createMockAdapter("second", ["code"]));
     const result = router.route("write some code");
     expect(result.agentName).toBe("first");
+  });
+});
+
+describe("createRouterFromConfig", () => {
+  let db: ReturnType<typeof createDatabase>;
+  let bus: ReturnType<typeof createEventBus>;
+  let registry: ReturnType<typeof createRegistry>;
+
+  beforeEach(() => {
+    db = createDatabase(":memory:");
+    bus = createEventBus();
+    registry = createRegistry(db, bus);
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it("should return the simple router when strategy is 'simple'", () => {
+    registry.register(createMockAdapter("agent-a", ["code"]));
+    const router = createRouterFromConfig(registry, db, { strategy: "simple" });
+    const result = router.route("write some code");
+    expect(result.reason).toContain("skill match");
+  });
+
+  it("should return the learned router when strategy is 'learned'", () => {
+    registry.register(createMockAdapter("agent-a", ["code"]));
+    db.updateRoutingStats("agent-a", "code-generation", true, 100, 0);
+    const router = createRouterFromConfig(registry, db, { strategy: "learned", seed: 42 });
+    const result = router.route("write some code");
+    expect(result.reason).toContain("thompson sampling");
+  });
+
+  it("should default to 'simple' when strategy is unrecognized", () => {
+    registry.register(createMockAdapter("agent-a", ["code"]));
+    const router = createRouterFromConfig(registry, db, { strategy: "unknown" as any });
+    const result = router.route("write some code");
+    expect(result.reason).toContain("skill match");
+  });
+
+  it("should default to 'simple' when no config is provided", () => {
+    registry.register(createMockAdapter("agent-a", ["code"]));
+    const router = createRouterFromConfig(registry, db);
+    const result = router.route("write some code");
+    expect(result.reason).toContain("skill match");
   });
 });

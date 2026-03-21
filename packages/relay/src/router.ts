@@ -1,4 +1,6 @@
 import type { LatticeRegistry } from "./registry.js";
+import type { LatticeDB } from "./db.js";
+import { createLearnedRouter } from "./learned-router.js";
 
 export interface RouteResult {
   agentName: string;
@@ -46,4 +48,28 @@ export function createRouter(registry: LatticeRegistry): LatticeRouter {
       return { agentName: onlineAgents[index].name, reason: "round-robin fallback (no skill match)" };
     },
   };
+}
+
+export interface RoutingConfig {
+  strategy?: "simple" | "learned";
+  seed?: number;
+}
+
+/**
+ * Factory that creates either the simple (skill-matching) or learned (Thompson Sampling)
+ * router based on the config. Both implement the LatticeRouter interface.
+ */
+export function createRouterFromConfig(
+  registry: LatticeRegistry,
+  db: LatticeDB,
+  config?: RoutingConfig
+): LatticeRouter {
+  const strategy = config?.strategy ?? "simple";
+
+  if (strategy === "learned") {
+    return createLearnedRouter(registry, db, { seed: config?.seed });
+  }
+
+  // Default: simple skill-matching router
+  return createRouter(registry);
 }
