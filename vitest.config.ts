@@ -7,6 +7,7 @@ export default defineConfig({
       "packages/adapters/claude-code",
       "packages/adapters/openclaw",
       "packages/adapters/codex",
+      "packages/dashboard",
     ],
   },
 });
