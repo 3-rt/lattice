@@ -9,7 +9,9 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
-    "dev": "npm run dev --workspace=packages/relay"
+    "dev": "npm run dev --workspace=packages/relay",
+    "dev:dashboard": "npm run dev --workspace=packages/dashboard",
+    "dev:all": "npm run dev --workspace=packages/relay & npm run dev --workspace=packages/dashboard"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
