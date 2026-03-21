@@ -1,3 +1,4 @@
+// packages/relay/src/main.ts
 import fs from "fs";
 import path from "path";
 import { createDatabase } from "./db.js";
@@ -22,10 +23,31 @@ const router = createRouter(registry);
 const taskManager = createTaskManager(db, bus, registry, router);
 const app = createApp({ db, registry, taskManager, bus });
 
-app.listen(port, host, () => {
-  console.log(`Lattice relay server running at http://${host}:${port}`);
-  console.log(`SSE endpoint: http://${host}:${port}/api/events`);
-  console.log(`Agents registered: ${registry.listAgents().length}`);
-});
+// Load enabled adapters from config
+async function loadAdapters() {
+  const adapters = config.adapters ?? {};
 
-setInterval(() => registry.runHealthChecks(), 30_000);
+  if (adapters["claude-code"]?.enabled) {
+    try {
+      const { createClaudeCodeAdapter } = await import("@lattice/adapter-claude-code");
+      registry.register(createClaudeCodeAdapter());
+      console.log("  ✓ claude-code adapter loaded");
+    } catch (err) {
+      console.error("  ✗ claude-code adapter failed to load:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  // Future adapters (2b, 2c) will be added here:
+  // if (adapters["openclaw"]?.enabled) { ... }
+  // if (adapters["codex"]?.enabled) { ... }
+}
+
+loadAdapters().then(() => {
+  app.listen(port, host, () => {
+    console.log(`Lattice relay server running at http://${host}:${port}`);
+    console.log(`SSE endpoint: http://${host}:${port}/api/events`);
+    console.log(`Agents registered: ${registry.listAgents().length}`);
+  });
+
+  setInterval(() => registry.runHealthChecks(), 30_000);
+});
