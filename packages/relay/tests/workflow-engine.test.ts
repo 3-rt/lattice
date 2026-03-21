@@ -247,4 +247,42 @@ describe("WorkflowEngine", () => {
     // createTask should only be called once (for n1, not n2)
     expect(taskManager.createTask).toHaveBeenCalledTimes(1);
   });
+
+  it("should resolve task templates using edge data mappings", async () => {
+    let capturedTexts: string[] = [];
+    (taskManager.createTask as ReturnType<typeof vi.fn>).mockImplementation(async (text: string) => {
+      capturedTexts.push(text);
+      return {
+        id: `task-${capturedTexts.length}`,
+        status: "submitted",
+        artifacts: [],
+        history: [{ role: "user", parts: [{ type: "text", text }] }],
+        metadata: { createdAt: "", updatedAt: "", assignedAgent: "", routingReason: "", latencyMs: 0 },
+      };
+    });
+    (taskManager.executeTask as ReturnType<typeof vi.fn>).mockImplementation(async (taskId: string) => ({
+      id: taskId,
+      status: "completed",
+      artifacts: [{ name: "output", parts: [{ type: "text", text: "Bug is in auth module line 42" }] }],
+      history: [],
+      metadata: { createdAt: "", updatedAt: "", assignedAgent: "mock", routingReason: "", latencyMs: 50 },
+    }));
+
+    const engine = createWorkflowEngine(db, taskManager, bus);
+    const definition: WorkflowDefinition = {
+      nodes: [
+        { id: "n1", type: "agent-task", label: "Analyze", config: { agent: "auto", taskTemplate: "analyze the bug" } },
+        { id: "n2", type: "agent-task", label: "Fix", config: { agent: "auto", taskTemplate: "Fix this: {{bugReport}}" } },
+      ],
+      edges: [
+        { source: "n1", target: "n2", dataMapping: { "artifacts[0].parts[0].text": "bugReport" } },
+      ],
+    };
+    db.insertWorkflow("wf-map", "Mapped", definition as unknown as Record<string, unknown>);
+
+    await engine.runWorkflow("wf-map");
+
+    expect(capturedTexts[0]).toBe("analyze the bug");
+    expect(capturedTexts[1]).toBe("Fix this: Bug is in auth module line 42");
+  });
 });
