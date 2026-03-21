@@ -1,0 +1,22 @@
+{
+  "name": "@lattice/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "lattice": "./bin/lattice.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lattice/adapter-base": "*",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0"
+  },
+  "files": ["dist", "bin"]
+}
