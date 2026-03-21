@@ -1,7 +1,7 @@
 // packages/adapters/claude-code/tests/claude-code-adapter.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createClaudeCodeAdapter } from "../src/claude-code-adapter.js";
-import type { Task, Message } from "@lattice/adapter-base";
+import type { Task } from "@lattice/adapter-base";
 
 // Mock the SDK module
 vi.mock("@anthropic-ai/claude-code", () => ({

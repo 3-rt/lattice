@@ -71,7 +71,7 @@ function extractResultText(messages: unknown[]): string {
 export function createClaudeCodeAdapter(): LatticeAdapter {
   return {
     getAgentCard(): AgentCard {
-      return AGENT_CARD;
+      return { ...AGENT_CARD, skills: [...AGENT_CARD.skills] };
     },
 
     async executeTask(task: Task): Promise<Task> {
