@@ -146,4 +146,105 @@ describe("WorkflowEngine", () => {
     const engine = createWorkflowEngine(db, taskManager, bus);
     await expect(engine.runWorkflow("nonexistent")).rejects.toThrow("Workflow \"nonexistent\" not found");
   });
+
+  it("should execute parallel branches concurrently", async () => {
+    const callOrder: string[] = [];
+    (taskManager.createTask as ReturnType<typeof vi.fn>).mockImplementation(async (text: string) => {
+      callOrder.push(`create:${text}`);
+      return {
+        id: `task-${text}`,
+        status: "submitted",
+        artifacts: [],
+        history: [{ role: "user", parts: [{ type: "text", text }] }],
+        metadata: { createdAt: "", updatedAt: "", assignedAgent: "", routingReason: "", latencyMs: 0 },
+      };
+    });
+    (taskManager.executeTask as ReturnType<typeof vi.fn>).mockImplementation(async (taskId: string) => ({
+      id: taskId,
+      status: "completed",
+      artifacts: [{ name: "output", parts: [{ type: "text", text: `done-${taskId}` }] }],
+      history: [],
+      metadata: { createdAt: "", updatedAt: "", assignedAgent: "mock", routingReason: "", latencyMs: 50 },
+    }));
+
+    const engine = createWorkflowEngine(db, taskManager, bus);
+    // a -> b, a -> c, b -> d, c -> d (diamond)
+    const definition: WorkflowDefinition = {
+      nodes: [
+        { id: "a", type: "agent-task", label: "A", config: { agent: "auto", taskTemplate: "A" } },
+        { id: "b", type: "agent-task", label: "B", config: { agent: "auto", taskTemplate: "B" } },
+        { id: "c", type: "agent-task", label: "C", config: { agent: "auto", taskTemplate: "C" } },
+        { id: "d", type: "agent-task", label: "D", config: { agent: "auto", taskTemplate: "D" } },
+      ],
+      edges: [
+        { source: "a", target: "b" },
+        { source: "a", target: "c" },
+        { source: "b", target: "d" },
+        { source: "c", target: "d" },
+      ],
+    };
+    db.insertWorkflow("wf-d", "Diamond", definition as unknown as Record<string, unknown>);
+
+    const run = await engine.runWorkflow("wf-d");
+
+    expect(run.status).toBe("completed");
+    // A must be first; B and C in any order; D last
+    expect(callOrder[0]).toBe("create:A");
+    expect(callOrder[3]).toBe("create:D");
+    expect(taskManager.createTask).toHaveBeenCalledTimes(4);
+  });
+
+  it("should handle condition nodes — true branch proceeds", async () => {
+    const engine = createWorkflowEngine(db, taskManager, bus);
+    const definition: WorkflowDefinition = {
+      nodes: [
+        { id: "n1", type: "agent-task", label: "Analyze", config: { agent: "auto", taskTemplate: "analyze bug" } },
+        { id: "cond", type: "condition", label: "Is completed?", config: { field: "n1.status", operator: "equals", value: "completed" } },
+        { id: "n2", type: "agent-task", label: "Fix", config: { agent: "auto", taskTemplate: "fix it" } },
+      ],
+      edges: [
+        { source: "n1", target: "cond" },
+        { source: "cond", target: "n2" },
+      ],
+    };
+    db.insertWorkflow("wf-cond", "Conditional", definition as unknown as Record<string, unknown>);
+
+    const run = await engine.runWorkflow("wf-cond");
+
+    expect(run.status).toBe("completed");
+    expect(run.context["cond"].conditionResult).toBe(true);
+    // n2 should have executed
+    expect(run.context["n2"].status).toBe("completed");
+  });
+
+  it("should skip downstream nodes when condition is false", async () => {
+    (taskManager.executeTask as ReturnType<typeof vi.fn>).mockImplementation(async (taskId: string) => ({
+      id: taskId,
+      status: "failed",
+      artifacts: [],
+      history: [],
+      metadata: { createdAt: "", updatedAt: "", assignedAgent: "mock", routingReason: "", latencyMs: 100 },
+    }));
+
+    const engine = createWorkflowEngine(db, taskManager, bus);
+    const definition: WorkflowDefinition = {
+      nodes: [
+        { id: "n1", type: "agent-task", label: "Analyze", config: { agent: "auto", taskTemplate: "analyze bug" } },
+        { id: "cond", type: "condition", label: "Is completed?", config: { field: "n1.status", operator: "equals", value: "completed" } },
+        { id: "n2", type: "agent-task", label: "Fix", config: { agent: "auto", taskTemplate: "fix it" } },
+      ],
+      edges: [
+        { source: "n1", target: "cond" },
+        { source: "cond", target: "n2" },
+      ],
+    };
+    db.insertWorkflow("wf-cond-f", "Cond False", definition as unknown as Record<string, unknown>);
+
+    const run = await engine.runWorkflow("wf-cond-f");
+
+    expect(run.context["cond"].conditionResult).toBe(false);
+    expect(run.context["n2"].status).toBe("skipped");
+    // createTask should only be called once (for n1, not n2)
+    expect(taskManager.createTask).toHaveBeenCalledTimes(1);
+  });
 });
