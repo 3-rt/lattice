@@ -92,3 +92,68 @@ describe("Integration: full task lifecycle", () => {
     expect(eventTypes).toContain("task:completed");
   });
 });
+
+describe("Learned Router Integration", () => {
+  function createMockAdapterWithTags(name: string, skillTags: string[]): LatticeAdapter {
+    const card: AgentCard = {
+      name,
+      description: `Mock ${name}`,
+      url: `http://localhost:3100/a2a/agents/${name}`,
+      version: "1.0.0",
+      capabilities: { streaming: false, pushNotifications: false },
+      skills: [{ id: "skill-1", name: "Skill", description: "A skill", tags: skillTags }],
+      authentication: { schemes: [] },
+    };
+    return {
+      getAgentCard: () => card,
+      executeTask: vi.fn(),
+      streamTask: vi.fn(),
+      healthCheck: vi.fn().mockResolvedValue(true),
+    };
+  }
+
+  it("should route tasks through the learned router end-to-end", async () => {
+    const db = createDatabase(":memory:");
+    const bus = createEventBus();
+    const registry = createRegistry(db, bus);
+
+    // Register two agents
+    const goodAdapter = createMockAdapterWithTags("good-agent", ["code"]);
+    (goodAdapter.executeTask as any).mockResolvedValue({
+      id: "t1",
+      status: "completed",
+      artifacts: [{ name: "result", parts: [{ type: "text", text: "done" }] }],
+      history: [],
+    });
+    const badAdapter = createMockAdapterWithTags("bad-agent", ["code"]);
+    (badAdapter.executeTask as any).mockRejectedValue(new Error("I always fail"));
+
+    registry.register(goodAdapter);
+    registry.register(badAdapter);
+
+    // Use learned router
+    const { createRouterFromConfig } = await import("../src/router.js");
+    const router = createRouterFromConfig(registry, db, { strategy: "learned" });
+    const taskManager = createTaskManager(db, bus, registry, router);
+
+    // Run several debugging tasks — after some learning, good-agent should dominate
+    const results: string[] = [];
+    for (let i = 0; i < 20; i++) {
+      const task = await taskManager.createTask("fix the bug in module");
+      const completed = await taskManager.executeTask(task.id);
+      results.push(completed.metadata?.assignedAgent ?? "");
+    }
+
+    // Check that stats were recorded per category
+    const stats = db.getRoutingStats();
+    const debuggingStats = stats.filter((s) => s.category === "debugging");
+    expect(debuggingStats.length).toBeGreaterThan(0);
+
+    // The good agent should have accumulated successes
+    const goodStats = debuggingStats.find((s) => s.agent_name === "good-agent");
+    expect(goodStats).toBeDefined();
+    expect(goodStats!.successes).toBeGreaterThan(0);
+
+    db.close();
+  });
+});
