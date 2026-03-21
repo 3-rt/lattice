@@ -285,4 +285,37 @@ describe("WorkflowEngine", () => {
     expect(capturedTexts[0]).toBe("analyze the bug");
     expect(capturedTexts[1]).toBe("Fix this: Bug is in auth module line 42");
   });
+
+  it("should mark run as failed when a task throws", async () => {
+    (taskManager.executeTask as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("adapter crashed"));
+
+    const engine = createWorkflowEngine(db, taskManager, bus);
+    const definition: WorkflowDefinition = {
+      nodes: [{ id: "n1", type: "agent-task", label: "A", config: { agent: "auto", taskTemplate: "A" } }],
+      edges: [],
+    };
+    db.insertWorkflow("wf-fail", "Fail", definition as unknown as Record<string, unknown>);
+
+    const run = await engine.runWorkflow("wf-fail");
+
+    expect(run.status).toBe("failed");
+    expect(run.context["n1"].status).toBe("failed");
+    expect(run.context["n1"].result).toContain("adapter crashed");
+
+    const dbRun = db.getWorkflowRun(run.id);
+    expect(dbRun!.status).toBe("failed");
+  });
+
+  it("should route to explicit agent when config.agent is not auto", async () => {
+    const engine = createWorkflowEngine(db, taskManager, bus);
+    const definition: WorkflowDefinition = {
+      nodes: [{ id: "n1", type: "agent-task", label: "A", config: { agent: "claude-code", taskTemplate: "fix it" } }],
+      edges: [],
+    };
+    db.insertWorkflow("wf-explicit", "Explicit Agent", definition as unknown as Record<string, unknown>);
+
+    await engine.runWorkflow("wf-explicit");
+
+    expect(taskManager.createTask).toHaveBeenCalledWith("fix it", "claude-code");
+  });
 });
