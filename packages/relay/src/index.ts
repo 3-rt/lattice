@@ -11,3 +11,18 @@ export type { LatticeEventBus } from "./event-bus.js";
 export type { LatticeRegistry } from "./registry.js";
 export type { LatticeRouter } from "./router.js";
 export type { LatticeTaskManager } from "./task-manager.js";
+
+export { createWorkflowEngine } from "./workflow-engine.js";
+export type { LatticeWorkflowEngine, WorkflowRunResult } from "./workflow-engine.js";
+export { topoSort } from "./workflow-topo.js";
+export { evaluateCondition, resolveContextValue, resolveTemplate, applyDataMapping } from "./workflow-condition.js";
+export type {
+  WorkflowDefinition,
+  WorkflowNode,
+  WorkflowEdge,
+  WorkflowContext,
+  NodeOutput,
+  AgentTaskConfig,
+  ConditionConfig,
+  DataMapping,
+} from "./workflow-types.js";
