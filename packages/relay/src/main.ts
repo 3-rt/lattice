@@ -1,4 +1,3 @@
-// packages/relay/src/main.ts
 import fs from "fs";
 import path from "path";
 import { createDatabase } from "./db.js";
@@ -50,4 +49,7 @@ loadAdapters().then(() => {
   });
 
   setInterval(() => registry.runHealthChecks(), 30_000);
+}).catch((err) => {
+  console.error("Fatal: failed to load adapters:", err);
+  process.exit(1);
 });
