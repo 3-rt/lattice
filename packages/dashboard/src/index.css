@@ -1,3 +1,95 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  /* Agent node idle breathing pulse */
+  @keyframes breathe {
+    0%, 100% {
+      box-shadow: 0 0 8px 2px rgba(76, 110, 245, 0.15);
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 0 16px 4px rgba(76, 110, 245, 0.3);
+      transform: scale(1.02);
+    }
+  }
+
+  /* Intensified working glow */
+  @keyframes glow-working {
+    0%, 100% {
+      box-shadow: 0 0 12px 4px rgba(76, 110, 245, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 24px 8px rgba(76, 110, 245, 0.7);
+    }
+  }
+
+  /* Success flash */
+  @keyframes glow-success {
+    0% {
+      box-shadow: 0 0 20px 8px rgba(52, 211, 153, 0.8);
+    }
+    100% {
+      box-shadow: 0 0 8px 2px rgba(52, 211, 153, 0.1);
+    }
+  }
+
+  /* Error flash */
+  @keyframes glow-error {
+    0% {
+      box-shadow: 0 0 20px 8px rgba(248, 113, 113, 0.8);
+    }
+    100% {
+      box-shadow: 0 0 8px 2px rgba(248, 113, 113, 0.1);
+    }
+  }
+
+  /* Neon edge pulse */
+  @keyframes edge-pulse {
+    0%, 100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  /* Particle travel along edge */
+  @keyframes particle-travel {
+    0% {
+      offset-distance: 0%;
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      offset-distance: 100%;
+      opacity: 0;
+    }
+  }
+
+  .animate-breathe {
+    animation: breathe 3s ease-in-out infinite;
+  }
+
+  .animate-glow-working {
+    animation: glow-working 1.5s ease-in-out infinite;
+  }
+
+  .animate-glow-success {
+    animation: glow-success 1s ease-out forwards;
+  }
+
+  .animate-glow-error {
+    animation: glow-error 1s ease-out forwards;
+  }
+
+  .animate-edge-pulse {
+    animation: edge-pulse 1.5s ease-in-out infinite;
+  }
+}
