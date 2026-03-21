@@ -4,6 +4,7 @@ import type { LatticeDB, TaskRow, TaskFilter } from "./db.js";
 import type { LatticeEventBus } from "./event-bus.js";
 import type { LatticeRegistry } from "./registry.js";
 import type { LatticeRouter } from "./router.js";
+import { categorize } from "./categorizer.js";
 
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -109,6 +110,10 @@ export function createTaskManager(
         return failedTask;
       }
 
+      // Categorize the task text for routing stats
+      const taskText = task.history[0]?.parts[0]?.text ?? "";
+      const category = categorize(taskText);
+
       // Update DB with routing info and status working
       db.updateTask(taskId, {
         status: "working",
@@ -151,7 +156,7 @@ export function createTaskManager(
           result: JSON.stringify({ error: errorMsg }),
           latency_ms: latencyMs,
         });
-        db.updateRoutingStats(agentName, "default", false, latencyMs, 0);
+        db.updateRoutingStats(agentName, category, false, latencyMs, 0);
         const failedTask = rowToTask(db.getTask(taskId)!);
         eventBus.emit({ type: "task:failed", taskId, error: errorMsg });
         return failedTask;
@@ -164,7 +169,7 @@ export function createTaskManager(
         result: JSON.stringify(resultTask.artifacts ?? []),
         latency_ms: latencyMs,
       });
-      db.updateRoutingStats(agentName, "default", true, latencyMs, 0);
+      db.updateRoutingStats(agentName, category, true, latencyMs, 0);
 
       const completedRow = db.getTask(taskId)!;
       const completedTask = rowToTask(completedRow);

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createTaskManager } from "../src/task-manager.js";
-import { createDatabase } from "../src/db.js";
+import { createDatabase, type LatticeDB } from "../src/db.js";
 import { createEventBus } from "../src/event-bus.js";
 import { createRegistry } from "../src/registry.js";
 import { createRouter } from "../src/router.js";
+import { categorize } from "../src/categorizer.js";
 import type { LatticeAdapter, AgentCard, Task } from "@lattice/adapter-base";
 
 function createMockAdapter(name: string, skillTags: string[]): LatticeAdapter {
@@ -32,9 +33,10 @@ describe("TaskManager", () => {
   let taskManager: ReturnType<typeof createTaskManager>;
   let bus: ReturnType<typeof createEventBus>;
   let registry: ReturnType<typeof createRegistry>;
+  let db: LatticeDB;
 
   beforeEach(() => {
-    const db = createDatabase(":memory:");
+    db = createDatabase(":memory:");
     bus = createEventBus();
     registry = createRegistry(db, bus);
     const router = createRouter(registry);
@@ -110,5 +112,53 @@ describe("TaskManager", () => {
     const updated = taskManager.getTask(task.id);
     expect(updated!.status).toBe("canceled");
     expect(cancelHandler).toHaveBeenCalledOnce();
+  });
+
+  it("should update routing stats with the task category, not 'default'", async () => {
+    const adapter = createMockAdapter("agent-a", ["code"]);
+    registry.register(adapter);
+
+    const task = await taskManager.createTask("fix the bug in auth");
+    await taskManager.executeTask(task.id);
+
+    const stats = db.getRoutingStats();
+    const debuggingStats = stats.find(
+      (s) => s.agent_name === "agent-a" && s.category === "debugging"
+    );
+    const defaultStats = stats.find(
+      (s) => s.agent_name === "agent-a" && s.category === "default"
+    );
+
+    expect(debuggingStats).toBeDefined();
+    expect(debuggingStats!.successes).toBe(1);
+    expect(defaultStats).toBeUndefined();
+  });
+
+  it("should categorize failed tasks too", async () => {
+    const failAdapter: LatticeAdapter = {
+      getAgentCard: () => ({
+        name: "fail-agent",
+        description: "Fails",
+        url: "http://localhost:3100/a2a/agents/fail-agent",
+        version: "1.0.0",
+        capabilities: { streaming: false, pushNotifications: false },
+        skills: [{ id: "s1", name: "Skill", description: "A skill", tags: ["code"] }],
+        authentication: { schemes: [] },
+      }),
+      executeTask: vi.fn().mockRejectedValue(new Error("boom")),
+      streamTask: vi.fn(),
+      healthCheck: vi.fn().mockResolvedValue(true),
+    };
+    registry.register(failAdapter);
+
+    const task = await taskManager.createTask("write a new endpoint");
+    await taskManager.executeTask(task.id);
+
+    const stats = db.getRoutingStats();
+    const genStats = stats.find(
+      (s) => s.agent_name === "fail-agent" && s.category === "code-generation"
+    );
+    expect(genStats).toBeDefined();
+    expect(genStats!.failures).toBe(1);
   });
 });
