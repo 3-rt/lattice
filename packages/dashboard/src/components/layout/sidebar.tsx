@@ -5,7 +5,7 @@ import { clsx } from "clsx";
 
 const navItems = [
   { to: "/", icon: Layout, label: "Agents" },
-  { to: "/flow", icon: Activity, label: "Live Flow", disabled: true },
+  { to: "/flow", icon: Activity, label: "Live Flow" },
   { to: "/tasks", icon: ListTodo, label: "Tasks", disabled: true },
   { to: "/workflows", icon: GitBranch, label: "Workflows", disabled: true },
 ];
