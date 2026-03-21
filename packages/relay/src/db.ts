@@ -35,6 +35,27 @@ export interface RoutingStatsRow {
   updated_at: string;
 }
 
+export interface WorkflowRow {
+  id: string;
+  name: string;
+  definition: string; // JSON serialized WorkflowDefinition
+  created_at: string;
+}
+
+export interface WorkflowRunRow {
+  id: string;
+  workflow_id: string;
+  status: string;
+  context: string | null; // JSON serialized context map
+  started_at: string;
+  completed_at: string | null;
+}
+
+export interface WorkflowRunUpdate {
+  status?: string;
+  context?: Record<string, unknown>;
+}
+
 export interface TaskFilter {
   status?: string;
   assigned_agent?: string;
@@ -76,6 +97,15 @@ export interface LatticeDB {
     cost: number
   ): void;
   getRoutingStats(): RoutingStatsRow[];
+
+  // Workflow methods
+  insertWorkflow(id: string, name: string, definition: Record<string, unknown>): void;
+  getWorkflow(id: string): WorkflowRow | undefined;
+  listWorkflows(): WorkflowRow[];
+  insertWorkflowRun(id: string, workflowId: string): void;
+  updateWorkflowRun(id: string, update: WorkflowRunUpdate): void;
+  getWorkflowRun(id: string): WorkflowRunRow | undefined;
+  listWorkflowRuns(workflowId: string): WorkflowRunRow[];
 
   close(): void;
 }
@@ -199,6 +229,17 @@ export function createDatabase(dbPath: string): LatticeDB {
     `),
 
     getRoutingStats: sqlite.prepare(`SELECT * FROM routing_stats`),
+
+    insertWorkflow: sqlite.prepare(`
+      INSERT INTO workflows (id, name, definition) VALUES (?, ?, ?)
+    `),
+    getWorkflow: sqlite.prepare(`SELECT * FROM workflows WHERE id = ?`),
+    listWorkflows: sqlite.prepare(`SELECT * FROM workflows`),
+    insertWorkflowRun: sqlite.prepare(`
+      INSERT INTO workflow_runs (id, workflow_id) VALUES (?, ?)
+    `),
+    getWorkflowRun: sqlite.prepare(`SELECT * FROM workflow_runs WHERE id = ?`),
+    listWorkflowRuns: sqlite.prepare(`SELECT * FROM workflow_runs WHERE workflow_id = ?`),
   };
 
   // Build a dynamic UPDATE statement for tasks
@@ -329,6 +370,45 @@ export function createDatabase(dbPath: string): LatticeDB {
 
     getRoutingStats(): RoutingStatsRow[] {
       return stmts.getRoutingStats.all() as RoutingStatsRow[];
+    },
+
+    insertWorkflow(id: string, name: string, definition: Record<string, unknown>): void {
+      stmts.insertWorkflow.run(id, name, JSON.stringify(definition));
+    },
+    getWorkflow(id: string): WorkflowRow | undefined {
+      return stmts.getWorkflow.get(id) as WorkflowRow | undefined;
+    },
+    listWorkflows(): WorkflowRow[] {
+      return stmts.listWorkflows.all() as WorkflowRow[];
+    },
+    insertWorkflowRun(id: string, workflowId: string): void {
+      stmts.insertWorkflowRun.run(id, workflowId);
+    },
+    updateWorkflowRun(id: string, update: WorkflowRunUpdate): void {
+      const fields: string[] = [];
+      const values: unknown[] = [];
+
+      if (update.status !== undefined) {
+        fields.push("status = ?");
+        values.push(update.status);
+        if (update.status === "completed" || update.status === "failed") {
+          fields.push("completed_at = datetime('now')");
+        }
+      }
+      if (update.context !== undefined) {
+        fields.push("context = ?");
+        values.push(JSON.stringify(update.context));
+      }
+      if (fields.length === 0) return;
+      values.push(id);
+      const sql = `UPDATE workflow_runs SET ${fields.join(", ")} WHERE id = ?`;
+      sqlite.prepare(sql).run(...values);
+    },
+    getWorkflowRun(id: string): WorkflowRunRow | undefined {
+      return stmts.getWorkflowRun.get(id) as WorkflowRunRow | undefined;
+    },
+    listWorkflowRuns(workflowId: string): WorkflowRunRow[] {
+      return stmts.listWorkflowRuns.all(workflowId) as WorkflowRunRow[];
     },
 
     close(): void {
