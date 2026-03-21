@@ -1,0 +1,28 @@
+{
+  "relay": {
+    "port": 3100,
+    "host": "localhost"
+  },
+  "adapters": {
+    "claude-code": {
+      "enabled": true,
+      "claudePath": "claude"
+    },
+    "openclaw": {
+      "enabled": true,
+      "gatewayUrl": "http://localhost:18789",
+      "gatewayToken": "${OPENCLAW_GATEWAY_TOKEN}"
+    },
+    "codex": {
+      "enabled": false,
+      "codexPath": "codex"
+    }
+  },
+  "dashboard": {
+    "port": 3200
+  },
+  "routing": {
+    "strategy": "learned",
+    "fallback": "round-robin"
+  }
+}
