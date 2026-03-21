@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { evaluateCondition, resolveContextValue } from "../src/workflow-condition.js";
-import type { ConditionConfig, WorkflowContext } from "../src/workflow-types.js";
+import { evaluateCondition, resolveContextValue, resolveTemplate, applyDataMapping } from "../src/workflow-condition.js";
+import type { ConditionConfig, WorkflowContext, DataMapping, NodeOutput } from "../src/workflow-types.js";
 
 describe("resolveContextValue", () => {
   const context: WorkflowContext = {
@@ -90,5 +90,48 @@ describe("evaluateCondition", () => {
   it("is_empty: true for missing field", () => {
     const config: ConditionConfig = { field: "n1.nonexistent", operator: "is_empty" };
     expect(evaluateCondition(config, context)).toBe(true);
+  });
+});
+
+describe("resolveTemplate", () => {
+  it("should replace placeholders with context values", () => {
+    const data: Record<string, string> = { bugDescription: "null pointer in auth", agentName: "claude-code" };
+    const template = "Fix this bug: {{bugDescription}} (assigned to {{agentName}})";
+    expect(resolveTemplate(template, data)).toBe("Fix this bug: null pointer in auth (assigned to claude-code)");
+  });
+
+  it("should leave unresolved placeholders empty", () => {
+    const data: Record<string, string> = {};
+    expect(resolveTemplate("Hello {{name}}", data)).toBe("Hello ");
+  });
+
+  it("should handle templates with no placeholders", () => {
+    expect(resolveTemplate("plain text", {})).toBe("plain text");
+  });
+});
+
+describe("applyDataMapping", () => {
+  it("should map source node fields to target data keys", () => {
+    const sourceOutput: NodeOutput = {
+      status: "completed",
+      result: "the bug report",
+      artifacts: [{ name: "output", parts: [{ type: "text", text: "detailed analysis" }] }],
+    };
+    const mapping: DataMapping = {
+      "result": "bugDescription",
+      "artifacts[0].parts[0].text": "analysis",
+    };
+    const mapped = applyDataMapping(sourceOutput, mapping);
+    expect(mapped).toEqual({
+      bugDescription: "the bug report",
+      analysis: "detailed analysis",
+    });
+  });
+
+  it("should skip mappings that resolve to undefined", () => {
+    const sourceOutput: NodeOutput = { status: "completed" };
+    const mapping: DataMapping = { "result": "bugDescription" };
+    const mapped = applyDataMapping(sourceOutput, mapping);
+    expect(mapped).toEqual({});
   });
 });
