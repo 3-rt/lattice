@@ -5,6 +5,8 @@ export default defineConfig({
     projects: [
       "packages/relay",
       "packages/adapters/claude-code",
+      "packages/adapters/openclaw",
+      "packages/adapters/codex",
     ],
   },
 });

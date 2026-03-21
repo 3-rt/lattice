@@ -36,9 +36,32 @@ async function loadAdapters() {
     }
   }
 
-  // Future adapters (2b, 2c) will be added here:
-  // if (adapters["openclaw"]?.enabled) { ... }
-  // if (adapters["codex"]?.enabled) { ... }
+  if (adapters["openclaw"]?.enabled) {
+    try {
+      const { createOpenClawAdapter } = await import("@lattice/adapter-openclaw");
+      const gatewayUrl = adapters["openclaw"].gatewayUrl ?? "http://localhost:18789";
+      const gatewayToken =
+        adapters["openclaw"].gatewayToken?.replace(
+          "${OPENCLAW_GATEWAY_TOKEN}",
+          process.env.OPENCLAW_GATEWAY_TOKEN ?? ""
+        ) ?? process.env.OPENCLAW_GATEWAY_TOKEN ?? "";
+      registry.register(createOpenClawAdapter({ gatewayUrl, gatewayToken }));
+      console.log("  ✓ openclaw adapter loaded");
+    } catch (err) {
+      console.error("  ✗ openclaw adapter failed to load:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  if (adapters["codex"]?.enabled) {
+    try {
+      const { createCodexAdapter } = await import("@lattice/adapter-codex");
+      const codexPath = adapters["codex"].codexPath ?? "codex";
+      registry.register(createCodexAdapter({ codexPath }));
+      console.log("  ✓ codex adapter loaded");
+    } catch (err) {
+      console.error("  ✗ codex adapter failed to load:", err instanceof Error ? err.message : err);
+    }
+  }
 }
 
 loadAdapters().then(() => {

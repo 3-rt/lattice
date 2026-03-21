@@ -12,6 +12,8 @@
   "dependencies": {
     "@lattice/adapter-base": "*",
     "@lattice/adapter-claude-code": "*",
+    "@lattice/adapter-codex": "*",
+    "@lattice/adapter-openclaw": "*",
     "better-sqlite3": "^11.0.0",
     "cors": "^2.8.5",
     "express": "^5.0.0",
