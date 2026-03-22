@@ -3,11 +3,16 @@ import { Activity, Layout, ListTodo, GitBranch } from "lucide-react";
 import { useLatticeStore } from "../../store/lattice-store.ts";
 import { clsx } from "clsx";
 
-const navItems = [
+const navItems: Array<{
+  to: string;
+  icon: typeof Activity;
+  label: string;
+  disabled?: boolean;
+}> = [
   { to: "/", icon: Layout, label: "Agents" },
   { to: "/flow", icon: Activity, label: "Live Flow" },
-  { to: "/tasks", icon: ListTodo, label: "Tasks", disabled: true },
-  { to: "/workflows", icon: GitBranch, label: "Workflows", disabled: true },
+  { to: "/tasks", icon: ListTodo, label: "Tasks" },
+  { to: "/workflows", icon: GitBranch, label: "Workflows" },
 ];
 
 export function Sidebar() {
