@@ -1,5 +1,5 @@
 // packages/adapters/claude-code/src/claude-code-adapter.ts
-import { query } from "@anthropic-ai/claude-code";
+import { spawn } from "node:child_process";
 import type {
   LatticeAdapter,
   AgentCard,
@@ -58,14 +58,115 @@ function buildPrompt(task: Task): string {
   return parts.join("\n\n");
 }
 
-function extractResultText(messages: unknown[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i] as Record<string, unknown>;
-    if (msg.type === "result" && typeof msg.result === "string") {
-      return msg.result;
+/** Resolve the claude CLI binary path. Prefers npx-resolved local install. */
+function claudeBin(): string {
+  return process.env.CLAUDE_BIN ?? "claude";
+}
+
+interface ClaudeJsonResult {
+  result?: string;
+  is_error?: boolean;
+  error?: string;
+  cost_usd?: number;
+  duration_ms?: number;
+  num_turns?: number;
+}
+
+/**
+ * Run `claude --print --output-format json` and return the parsed result.
+ */
+function runClaude(prompt: string): Promise<ClaudeJsonResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      claudeBin(),
+      [
+        "--print",
+        "--output-format",
+        "json",
+        "--no-session-persistence",
+        "--max-turns",
+        "10",
+        "--bare",
+        prompt,
+      ],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+
+    const chunks: Buffer[] = [];
+    const errChunks: Buffer[] = [];
+
+    child.stdout.on("data", (d: Buffer) => chunks.push(d));
+    child.stderr.on("data", (d: Buffer) => errChunks.push(d));
+
+    child.on("error", (err) => reject(err));
+    child.on("close", (code) => {
+      const stdout = Buffer.concat(chunks).toString("utf-8").trim();
+      const stderr = Buffer.concat(errChunks).toString("utf-8").trim();
+
+      if (code !== 0 && !stdout) {
+        reject(new Error(stderr || `claude exited with code ${code}`));
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(stdout) as ClaudeJsonResult);
+      } catch {
+        // Non-JSON output — treat the raw text as the result
+        resolve({ result: stdout });
+      }
+    });
+  });
+}
+
+/**
+ * Run `claude --print --output-format stream-json` and yield lines.
+ */
+function spawnClaudeStream(prompt: string): {
+  lines: AsyncGenerator<Record<string, unknown>>;
+  kill: () => void;
+} {
+  const child = spawn(
+    claudeBin(),
+    [
+      "--print",
+      "--output-format",
+      "stream-json",
+      "--no-session-persistence",
+      "--max-turns",
+      "10",
+      "--bare",
+      prompt,
+    ],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+
+  async function* lines(): AsyncGenerator<Record<string, unknown>> {
+    let buf = "";
+    for await (const chunk of child.stdout) {
+      buf += chunk.toString("utf-8");
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) !== -1) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line) continue;
+        try {
+          yield JSON.parse(line) as Record<string, unknown>;
+        } catch {
+          // skip non-JSON lines
+        }
+      }
+    }
+    // Flush remainder
+    if (buf.trim()) {
+      try {
+        yield JSON.parse(buf.trim()) as Record<string, unknown>;
+      } catch {
+        // ignore
+      }
     }
   }
-  return "";
+
+  return { lines: lines(), kill: () => child.kill() };
 }
 
 export function createClaudeCodeAdapter(): LatticeAdapter {
@@ -79,11 +180,11 @@ export function createClaudeCodeAdapter(): LatticeAdapter {
 
       let resultText: string;
       try {
-        const messages = await query({
-          prompt,
-          options: { maxTurns: 10 },
-        });
-        resultText = extractResultText(messages);
+        const res = await runClaude(prompt);
+        if (res.is_error || res.error) {
+          throw new Error(res.error ?? "Claude returned an error");
+        }
+        resultText = res.result ?? "";
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         return {
@@ -111,33 +212,44 @@ export function createClaudeCodeAdapter(): LatticeAdapter {
       const prompt = buildPrompt(task);
 
       try {
-        const messages = await query({
-          prompt,
-          options: { maxTurns: 10 },
-        });
+        const { lines } = spawnClaudeStream(prompt);
 
-        // Yield progress for assistant messages
-        for (const msg of messages) {
-          const m = msg as Record<string, unknown>;
-          if (m.type === "assistant") {
-            const content = (m.message as Record<string, unknown>)
-              ?.content as Array<Record<string, unknown>> | undefined;
+        for await (const event of lines) {
+          // stream-json emits objects with a "type" field
+          if (event.type === "assistant" && typeof event.message === "object") {
+            const msg = event.message as Record<string, unknown>;
+            const content = msg.content as
+              | Array<Record<string, unknown>>
+              | undefined;
             const text = content?.find((c) => c.type === "text")?.text as
               | string
               | undefined;
             if (text) {
               yield { taskId: task.id, status: "working", message: text };
             }
+          } else if (event.type === "result") {
+            const resultText =
+              typeof event.result === "string" ? event.result : "";
+            yield {
+              taskId: task.id,
+              status: "completed",
+              artifacts: [
+                {
+                  name: "result",
+                  parts: [{ type: "text", text: resultText }],
+                },
+              ],
+            };
+            return;
           }
         }
 
-        // Yield final completion
-        const resultText = extractResultText(messages);
+        // If we got here without a result event, yield completed with empty result
         yield {
           taskId: task.id,
           status: "completed",
           artifacts: [
-            { name: "result", parts: [{ type: "text", text: resultText }] },
+            { name: "result", parts: [{ type: "text", text: "" }] },
           ],
         };
       } catch (err) {
@@ -147,7 +259,12 @@ export function createClaudeCodeAdapter(): LatticeAdapter {
     },
 
     async healthCheck(): Promise<boolean> {
-      return true;
+      try {
+        const res = await runClaude("ping");
+        return !res.is_error;
+      } catch {
+        return false;
+      }
     },
   };
 }

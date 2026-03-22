@@ -9,8 +9,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lattice/adapter-base": "*",
-    "@anthropic-ai/claude-code": "^0.2.0"
+    "@lattice/adapter-base": "*"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ]
 }

@@ -1,15 +1,48 @@
 // packages/adapters/claude-code/tests/claude-code-adapter.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { EventEmitter } from "node:events";
+import { Readable } from "node:stream";
 import { createClaudeCodeAdapter } from "../src/claude-code-adapter.js";
 import type { Task } from "@lattice/adapter-base";
 
-// Mock the SDK module
-vi.mock("@anthropic-ai/claude-code", () => ({
-  query: vi.fn(),
+// Mock child_process.spawn
+vi.mock("node:child_process", () => ({
+  spawn: vi.fn(),
 }));
 
-import { query } from "@anthropic-ai/claude-code";
-const mockQuery = vi.mocked(query);
+import { spawn } from "node:child_process";
+const mockSpawn = vi.mocked(spawn);
+
+/** Create a fake ChildProcess that emits the given stdout, stderr, and exit code. */
+function fakeProcess(
+  stdout: string,
+  stderr = "",
+  code = 0,
+): ReturnType<typeof spawn> {
+  const proc = new EventEmitter() as ReturnType<typeof spawn>;
+
+  const stdoutStream = new EventEmitter() as ReturnType<typeof spawn>["stdout"];
+  const stderrStream = new EventEmitter() as ReturnType<typeof spawn>["stderr"];
+
+  // Make stdout async-iterable for streamTask
+  (stdoutStream as unknown as Record<string, unknown>)[Symbol.asyncIterator] =
+    async function* () {
+      yield stdout;
+    };
+
+  proc.stdout = stdoutStream;
+  proc.stderr = stderrStream;
+  proc.kill = vi.fn();
+
+  // Emit data then close on next tick so listeners can attach
+  process.nextTick(() => {
+    stdoutStream.emit("data", Buffer.from(stdout));
+    stderrStream.emit("data", Buffer.from(stderr));
+    proc.emit("close", code);
+  });
+
+  return proc;
+}
 
 function makeTask(text: string, id = "test-task-1"): Task {
   return {
@@ -46,59 +79,81 @@ describe("ClaudeCodeAdapter", () => {
   });
 
   describe("executeTask", () => {
-    it("should map task text to SDK query and return artifacts", async () => {
-      mockQuery.mockResolvedValue([
-        { type: "result", result: "Here is the fixed code:\n```ts\nconst x = 1;\n```", subtype: "success" },
-      ]);
+    it("should spawn claude CLI and return result artifact", async () => {
+      const jsonResult = JSON.stringify({
+        result: "Here is the fixed code:\n```ts\nconst x = 1;\n```",
+      });
+      mockSpawn.mockReturnValue(fakeProcess(jsonResult));
 
       const task = makeTask("fix the bug in auth.ts");
       const result = await adapter.executeTask(task);
 
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.objectContaining({
-          prompt: "fix the bug in auth.ts",
-          options: expect.objectContaining({
-            maxTurns: 10,
-          }),
-        })
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "claude",
+        expect.arrayContaining(["--print", "--output-format", "json"]),
+        expect.any(Object),
       );
 
       expect(result.status).toBe("completed");
       expect(result.artifacts.length).toBe(1);
-      expect(result.artifacts[0].parts[0].type).toBe("text");
       expect(result.artifacts[0].parts[0].text).toContain("fixed code");
     });
 
-    it("should handle SDK errors and return failed task", async () => {
-      mockQuery.mockRejectedValue(new Error("API rate limit exceeded"));
+    it("should handle CLI errors and return failed task", async () => {
+      mockSpawn.mockReturnValue(
+        fakeProcess("", "API rate limit exceeded", 1),
+      );
 
       const task = makeTask("do something");
       const result = await adapter.executeTask(task);
 
       expect(result.status).toBe("failed");
-      expect(result.artifacts[0].parts[0].text).toContain("API rate limit exceeded");
-    });
-
-    it("should include full conversation history in prompt", async () => {
-      mockQuery.mockResolvedValue([
-        { type: "result", result: "Done.", subtype: "success" },
-      ]);
-
-      const task = makeTask("initial request");
-      task.history.push({ role: "agent", parts: [{ type: "text", text: "What file?" }] });
-      task.history.push({ role: "user", parts: [{ type: "text", text: "auth.ts" }] });
-
-      await adapter.executeTask(task);
-
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.objectContaining({
-          prompt: expect.stringContaining("auth.ts"),
-        })
+      expect(result.artifacts[0].parts[0].text).toContain(
+        "API rate limit exceeded",
       );
     });
 
-    it("should handle empty SDK response", async () => {
-      mockQuery.mockResolvedValue([]);
+    it("should handle JSON error response", async () => {
+      const jsonResult = JSON.stringify({
+        is_error: true,
+        error: "Authentication failed",
+      });
+      mockSpawn.mockReturnValue(fakeProcess(jsonResult));
+
+      const task = makeTask("do something");
+      const result = await adapter.executeTask(task);
+
+      expect(result.status).toBe("failed");
+      expect(result.artifacts[0].parts[0].text).toContain(
+        "Authentication failed",
+      );
+    });
+
+    it("should include full conversation history in prompt", async () => {
+      const jsonResult = JSON.stringify({ result: "Done." });
+      mockSpawn.mockReturnValue(fakeProcess(jsonResult));
+
+      const task = makeTask("initial request");
+      task.history.push({
+        role: "agent",
+        parts: [{ type: "text", text: "What file?" }],
+      });
+      task.history.push({
+        role: "user",
+        parts: [{ type: "text", text: "auth.ts" }],
+      });
+
+      await adapter.executeTask(task);
+
+      // The prompt (last arg to spawn) should contain both user messages
+      const args = mockSpawn.mock.calls[0][1] as string[];
+      const prompt = args[args.length - 1];
+      expect(prompt).toContain("auth.ts");
+    });
+
+    it("should handle empty CLI response", async () => {
+      const jsonResult = JSON.stringify({ result: "" });
+      mockSpawn.mockReturnValue(fakeProcess(jsonResult));
 
       const task = makeTask("do something");
       const result = await adapter.executeTask(task);
@@ -107,21 +162,49 @@ describe("ClaudeCodeAdapter", () => {
       expect(result.artifacts.length).toBe(1);
       expect(result.artifacts[0].parts[0].text).toBe("");
     });
+
+    it("should handle non-JSON output as plain text result", async () => {
+      mockSpawn.mockReturnValue(fakeProcess("Hello, plain text!"));
+
+      const task = makeTask("say hello");
+      const result = await adapter.executeTask(task);
+
+      expect(result.status).toBe("completed");
+      expect(result.artifacts[0].parts[0].text).toBe("Hello, plain text!");
+    });
   });
 
   describe("healthCheck", () => {
-    it("should return true when SDK is available", async () => {
+    it("should return true when CLI succeeds", async () => {
+      mockSpawn.mockReturnValue(
+        fakeProcess(JSON.stringify({ result: "pong" })),
+      );
       const healthy = await adapter.healthCheck();
       expect(healthy).toBe(true);
+    });
+
+    it("should return false when CLI fails", async () => {
+      mockSpawn.mockReturnValue(fakeProcess("", "not found", 127));
+      const healthy = await adapter.healthCheck();
+      expect(healthy).toBe(false);
     });
   });
 
   describe("streamTask", () => {
-    it("should yield progress updates from SDK streaming", async () => {
-      mockQuery.mockResolvedValue([
-        { type: "assistant", message: { content: [{ type: "text", text: "Thinking..." }] } },
-        { type: "result", result: "Done: fixed the bug", subtype: "success" },
-      ]);
+    it("should yield progress updates from stream-json output", async () => {
+      const lines = [
+        JSON.stringify({
+          type: "assistant",
+          message: { content: [{ type: "text", text: "Thinking..." }] },
+        }),
+        JSON.stringify({
+          type: "result",
+          result: "Done: fixed the bug",
+          subtype: "success",
+        }),
+      ].join("\n");
+
+      mockSpawn.mockReturnValue(fakeProcess(lines));
 
       const task = makeTask("fix the bug");
       const updates: Array<{ status: string; message?: string }> = [];
@@ -130,9 +213,10 @@ describe("ClaudeCodeAdapter", () => {
         updates.push(update);
       }
 
-      expect(updates.length).toBeGreaterThanOrEqual(1);
-      const lastUpdate = updates[updates.length - 1];
-      expect(lastUpdate.status).toBe("completed");
+      expect(updates.length).toBe(2);
+      expect(updates[0].status).toBe("working");
+      expect(updates[0].message).toBe("Thinking...");
+      expect(updates[1].status).toBe("completed");
     });
   });
 });
