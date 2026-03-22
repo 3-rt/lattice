@@ -14,7 +14,7 @@
       "gatewayToken": "${OPENCLAW_GATEWAY_TOKEN}"
     },
     "codex": {
-      "enabled": false,
+      "enabled": true,
       "codexPath": "codex"
     }
   },
@@ -24,5 +24,8 @@
   "routing": {
     "strategy": "learned",
     "fallback": "round-robin"
+  },
+  "workflows": {
+    "seedDir": "workflows"
   }
 }

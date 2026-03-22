@@ -21,6 +21,8 @@ export type { LearnedRouterOptions } from "./learned-router.js";
 
 export { createWorkflowEngine } from "./workflow-engine.js";
 export type { LatticeWorkflowEngine, WorkflowRunResult } from "./workflow-engine.js";
+export { seedWorkflows } from "./seed-workflows.js";
+export type { SeedResult } from "./seed-workflows.js";
 export { topoSort } from "./workflow-topo.js";
 export { evaluateCondition, resolveContextValue, resolveTemplate, applyDataMapping } from "./workflow-condition.js";
 export type {

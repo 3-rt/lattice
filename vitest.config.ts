@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     projects: [
+      "tests/vitest.config.ts",
       "packages/relay",
       "packages/adapters/claude-code",
       "packages/adapters/openclaw",
