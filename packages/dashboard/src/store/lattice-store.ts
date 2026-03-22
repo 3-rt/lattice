@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { AgentInfo, TaskInfo } from "../lib/api.ts";
+import { useWorkflowStore } from "./workflow-store.ts";
 
 interface LatticeState {
   // Data
@@ -9,6 +10,7 @@ interface LatticeState {
 
   // Actions
   setAgents: (agents: AgentInfo[]) => void;
+  setTasks: (tasks: TaskInfo[]) => void;
   updateAgent: (name: string, update: Partial<AgentInfo>) => void;
   addTask: (task: TaskInfo) => void;
   updateTask: (taskId: string, update: Partial<TaskInfo>) => void;
@@ -24,6 +26,7 @@ export const useLatticeStore = create<LatticeState>((set, get) => ({
   connectionStatus: "disconnected",
 
   setAgents: (agents) => set({ agents }),
+  setTasks: (tasks) => set({ tasks }),
 
   updateAgent: (name, update) =>
     set((state) => ({
@@ -79,14 +82,39 @@ export const useLatticeStore = create<LatticeState>((set, get) => ({
         break;
 
       case "task:routed":
+        const existingTask = state.tasks.find((t) => t.id === event.taskId);
+        const metadata = existingTask?.metadata ?? {
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          assignedAgent: "",
+          routingReason: "",
+          latencyMs: 0,
+        };
         state.updateTask(event.taskId as string, {
           status: "working",
           metadata: {
-            ...state.tasks.find((t) => t.id === event.taskId)?.metadata!,
+            ...metadata,
             assignedAgent: event.agentName as string,
             routingReason: event.reason as string,
           },
         });
+        break;
+
+      case "workflow:started":
+        useWorkflowStore
+          .getState()
+          .startRun(event.runId as string, event.workflowId as string);
+        break;
+
+      case "workflow:step":
+        useWorkflowStore.getState().updateStepStatus(
+          event.stepId as string,
+          event.status as "working" | "completed" | "failed" | "skipped"
+        );
+        break;
+
+      case "workflow:completed":
+        useWorkflowStore.getState().completeRun();
         break;
     }
   },
