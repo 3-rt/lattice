@@ -175,16 +175,19 @@ describe("ClaudeCodeAdapter", () => {
   });
 
   describe("healthCheck", () => {
-    it("should return true when CLI succeeds", async () => {
-      mockSpawn.mockReturnValue(
-        fakeProcess(JSON.stringify({ result: "pong" })),
-      );
+    it("should return true when claude binary is found", async () => {
+      mockSpawn.mockReturnValue(fakeProcess("1.0.0"));
       const healthy = await adapter.healthCheck();
       expect(healthy).toBe(true);
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "claude",
+        ["--version"],
+        expect.any(Object),
+      );
     });
 
-    it("should return false when CLI fails", async () => {
-      mockSpawn.mockReturnValue(fakeProcess("", "not found", 127));
+    it("should return false when claude binary is not found", async () => {
+      mockSpawn.mockReturnValue(fakeProcess("", "", 127));
       const healthy = await adapter.healthCheck();
       expect(healthy).toBe(false);
     });

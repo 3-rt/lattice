@@ -259,12 +259,15 @@ export function createClaudeCodeAdapter(): LatticeAdapter {
     },
 
     async healthCheck(): Promise<boolean> {
-      try {
-        const res = await runClaude("ping");
-        return !res.is_error;
-      } catch {
-        return false;
-      }
+      // Just verify the claude binary is reachable — don't run a full prompt
+      // which requires auth and costs a subprocess + API call.
+      return new Promise((resolve) => {
+        const child = spawn(claudeBin(), ["--version"], {
+          stdio: ["ignore", "pipe", "ignore"],
+        });
+        child.on("error", () => resolve(false));
+        child.on("close", (code) => resolve(code === 0));
+      });
     },
   };
 }
