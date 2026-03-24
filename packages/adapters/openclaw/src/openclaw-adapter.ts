@@ -136,7 +136,9 @@ class OpenClawGatewayClient {
 
       ws.on("error", (err) => {
         clearTimeout(timeout);
-        reject(err);
+        const code = (err as NodeJS.ErrnoException).code;
+        const msg = err.message || code || "WebSocket connection failed";
+        reject(new Error(msg));
       });
 
       ws.on("close", () => {
