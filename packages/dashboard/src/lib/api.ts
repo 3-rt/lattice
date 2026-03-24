@@ -3,6 +3,7 @@ const BASE_URL = "/api";
 export interface AgentInfo {
   name: string;
   status: string;
+  statusReason?: string;
   card: {
     name: string;
     description: string;

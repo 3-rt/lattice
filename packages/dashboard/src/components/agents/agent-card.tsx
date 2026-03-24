@@ -34,6 +34,12 @@ export function AgentCard({ agent }: AgentCardProps) {
 
       <p className="mt-1 text-xs text-gray-400 line-clamp-2">{agent.card.description}</p>
 
+      {!isOnline && agent.statusReason && (
+        <div className="mt-3 rounded border border-amber-900/50 bg-amber-950/30 px-3 py-2">
+          <p className="text-xs text-amber-200/80">{agent.statusReason}</p>
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap gap-1">
         {agent.card.skills.map((skill) => (
           <span

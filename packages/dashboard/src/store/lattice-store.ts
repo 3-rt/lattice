@@ -62,7 +62,10 @@ export const useLatticeStore = create<LatticeState>((set, get) => ({
         break;
 
       case "agent:status":
-        state.updateAgent(event.agentName as string, { status: event.status as string });
+        state.updateAgent(event.agentName as string, {
+          status: event.status as string,
+          statusReason: (event.reason as string) ?? undefined,
+        });
         break;
 
       case "task:created":
