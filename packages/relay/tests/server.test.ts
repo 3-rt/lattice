@@ -57,6 +57,22 @@ describe("Server API", () => {
       expect(res.body).toHaveLength(1);
       expect(res.body[0].name).toBe("claude-code");
     });
+
+    it("should include statusReason when agent is offline", async () => {
+      const adapter = createMockAdapter("claude-code", ["code"]);
+      registry.register(adapter);
+      const entry = registry.listAgents()[0];
+      entry.status = "offline";
+      entry.statusReason = "CLI not found";
+      const res = await request(app).get("/api/agents");
+      expect(res.body[0].statusReason).toBe("CLI not found");
+    });
+
+    it("should omit statusReason when agent is online", async () => {
+      registry.register(createMockAdapter("claude-code", ["code"]));
+      const res = await request(app).get("/api/agents");
+      expect(res.body[0].statusReason).toBeUndefined();
+    });
   });
 
   describe("POST /api/tasks", () => {

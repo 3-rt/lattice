@@ -26,6 +26,7 @@ export function createApp({ db, registry, taskManager, bus, workflowEngine }: Se
       name: a.name,
       status: a.status,
       card: a.card,
+      ...(a.statusReason ? { statusReason: a.statusReason } : {}),
     }));
     res.json(agents);
   });
