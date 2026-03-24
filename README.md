@@ -28,6 +28,9 @@ npm install
 # Run tests (193 passing)
 npx vitest run
 
+# Set the OpenClaw gateway token (required for OpenClaw adapter)
+export OPENCLAW_GATEWAY_TOKEN="your-token"
+
 # Start the relay server (port 3100)
 npm start
 
@@ -37,6 +40,12 @@ npm run dev:dashboard
 # Open the dashboard
 open http://localhost:3200
 ```
+
+> **Note:** If agents show as unregistered or the relay starts with 0 agents, delete the stale database and restart:
+> ```bash
+> rm -f lattice.db lattice.db-shm lattice.db-wal
+> npm start
+> ```
 
 Or start both at once:
 
