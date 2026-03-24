@@ -31,7 +31,7 @@ lattice/
 │   ├── adapters/
 │   │   ├── base/           # A2A types + LatticeAdapter interface (DONE)
 │   │   ├── claude-code/    # Claude Code SDK wrapper (Phase 2)
-│   │   ├── openclaw/       # OpenClaw gateway wrapper (Phase 2)
+│   │   ├── openclaw/       # OpenClaw WebSocket gateway wrapper (Phase 2)
 │   │   └── codex/          # Codex CLI wrapper (Phase 2)
 │   ├── relay/              # Core relay server (DONE - Phase 1)
 │   │   ├── src/
@@ -64,7 +64,7 @@ lattice/
 
 ### Phase 2 — Fan Out (NEXT — all parallel)
 - **2a:** Claude Code Adapter — uses `@anthropic-ai/claude-code` SDK
-- **2b:** OpenClaw Adapter — calls gateway REST API, auth via OPENCLAW_GATEWAY_TOKEN
+- **2b:** OpenClaw Adapter — connects to gateway via WebSocket JSON-RPC, auth via OPENCLAW_GATEWAY_TOKEN
 - **2c:** Codex Adapter — wraps CLI via child process
 - **2d:** Dashboard Shell + Agent Overview — React + Vite + Tailwind + shadcn/ui, dark theme, SSE hook, Zustand store, agent cards grid, task dispatch bar
 - **2e:** CLI — Commander.js thin wrapper over relay REST API

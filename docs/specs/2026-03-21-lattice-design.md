@@ -287,8 +287,9 @@ interface Artifact {
 - Streaming supported via SDK streaming API -> `streamTask` yields progress updates
 
 ### OpenClaw Adapter
-- Calls OpenClaw gateway REST API (`/v1/chat/completions`)
-- Auth via `OPENCLAW_GATEWAY_TOKEN` env var
+- Connects to OpenClaw gateway via WebSocket JSON-RPC (`ws://<host>:<port>/ws`)
+- Protocol: receives `connect.challenge`, responds with `connect` (protocol v3, token auth), then uses `chat.send` RPC for task execution
+- Auth via `OPENCLAW_GATEWAY_TOKEN` env var, passed as `auth.token` in the connect handshake
 - Skills: `messaging`, `scheduling`, `web-browsing`, `file-management`
 - Key demo moment: cross-agent task (Claude Code fix -> OpenClaw sends Telegram notification)
 

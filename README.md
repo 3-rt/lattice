@@ -17,7 +17,7 @@ Dashboard (React + Vite)  ◄──── SSE ────►  Relay (Express + 
 - **Relay** — Agent registry, task manager, learned router (Thompson Sampling), workflow engine (DAG executor), SSE event stream, SQLite persistence
 - **Dashboard** — Agent overview, live flow visualization (React Flow), task history, routing stats, workflow editor/runner
 - **CLI** — Thin wrapper around the relay REST API
-- **Adapters** — In-process TypeScript modules implementing the `LatticeAdapter` interface. Claude Code runs via CLI subprocess, OpenClaw calls a REST gateway, Codex wraps its CLI.
+- **Adapters** — In-process TypeScript modules implementing the `LatticeAdapter` interface. Claude Code runs via CLI subprocess, OpenClaw connects to its gateway over WebSocket JSON-RPC, Codex wraps its CLI.
 
 ## Quick Start
 
@@ -51,7 +51,7 @@ The relay and dashboard run without any external agents. To actually execute tas
 | Adapter | Requirement |
 |---------|-------------|
 | Claude Code | `claude` CLI on PATH, authenticated |
-| OpenClaw | `OPENCLAW_GATEWAY_TOKEN` env var, gateway running on `:18789` |
+| OpenClaw | `OPENCLAW_GATEWAY_TOKEN` env var, gateway reachable via WebSocket (default `ws://localhost:18789/ws`) |
 | Codex | `codex` CLI on PATH |
 
 Disable any adapter in `lattice.config.json` by setting `"enabled": false`.
@@ -109,7 +109,7 @@ lattice/
 │   ├── adapters/
 │   │   ├── base/           # A2A types + LatticeAdapter interface
 │   │   ├── claude-code/    # Claude Code CLI subprocess wrapper
-│   │   ├── openclaw/       # OpenClaw REST gateway wrapper
+│   │   ├── openclaw/       # OpenClaw WebSocket gateway wrapper
 │   │   └── codex/          # Codex CLI wrapper
 │   ├── relay/              # Core relay server
 │   ├── cli/                # Commander.js CLI
@@ -133,7 +133,7 @@ All runtime config lives in [`lattice.config.json`](./lattice.config.json):
   "dashboard": { "port": 3200 },
   "adapters": {
     "claude-code": { "enabled": true },
-    "openclaw": { "enabled": true, "gatewayToken": "${OPENCLAW_GATEWAY_TOKEN}" },
+    "openclaw": { "enabled": true, "gatewayUrl": "http://100.98.106.46:18789", "gatewayToken": "${OPENCLAW_GATEWAY_TOKEN}" },
     "codex": { "enabled": true }
   },
   "routing": { "strategy": "learned", "fallback": "round-robin" },

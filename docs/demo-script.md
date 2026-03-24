@@ -7,7 +7,7 @@ npm install
 export OPENCLAW_GATEWAY_TOKEN="your-token"
 ```
 
-Ensure `claude`, `codex`, and the OpenClaw gateway are available if you want the full live demo.
+Ensure `claude`, `codex`, and the OpenClaw gateway are available if you want the full live demo. The OpenClaw adapter connects via WebSocket — configure `gatewayUrl` in `lattice.config.json` to point to the gateway host (e.g., `http://192.168.1.50:18789` for a remote machine). The gateway must bind to `0.0.0.0` (not `localhost`) to accept remote connections.
 
 ## 1. Boot The System
 

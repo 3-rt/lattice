@@ -10,7 +10,7 @@
     },
     "openclaw": {
       "enabled": true,
-      "gatewayUrl": "http://localhost:18789",
+      "gatewayUrl": "http://100.98.106.46:18789",
       "gatewayToken": "${OPENCLAW_GATEWAY_TOKEN}"
     },
     "codex": {

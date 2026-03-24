@@ -9,7 +9,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lattice/adapter-base": "*"
+    "@lattice/adapter-base": "*",
+    "ws": "^8.20.0"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
 }

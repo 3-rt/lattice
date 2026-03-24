@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build an adapter that wraps the OpenClaw gateway REST API (`/v1/chat/completions`), implementing the `LatticeAdapter` interface so OpenClaw can be orchestrated through the Lattice relay.
+**Goal:** Build an adapter that connects to the OpenClaw gateway via WebSocket JSON-RPC, implementing the `LatticeAdapter` interface so OpenClaw can be orchestrated through the Lattice relay.
 
-**Architecture:** In-process TypeScript module that maps A2A Task objects to OpenClaw chat completion requests and parses responses back into A2A Artifacts. Auth via `OPENCLAW_GATEWAY_TOKEN` env var. Gateway URL from `lattice.config.json`. This is the second adapter — the cross-agent demo (Claude Code fix → OpenClaw notification) is the key demo moment.
+**Architecture:** In-process TypeScript module that connects to the OpenClaw gateway over WebSocket (`ws://<host>:<port>/ws`), handles the `connect.challenge` → `connect` auth handshake, and uses the `chat.send` RPC method to execute tasks. Streamed responses arrive as `chat` events with `delta`/`final` states. Auth via `OPENCLAW_GATEWAY_TOKEN` env var. Gateway URL from `lattice.config.json`. This is the second adapter — the cross-agent demo (Claude Code fix → OpenClaw notification) is the key demo moment.
 
-**Tech Stack:** TypeScript, native `fetch`, Vitest
+**Tech Stack:** TypeScript, `ws` (WebSocket client), Vitest
 
 **Spec:** `docs/specs/2026-03-21-lattice-design.md` (section: OpenClaw Adapter)
 
