@@ -60,6 +60,7 @@ export interface Part {
 export interface Artifact {
   name: string;
   parts: Part[];
+  detail?: string;
 }
 
 export interface TaskStatusUpdate {
@@ -69,10 +70,12 @@ export interface TaskStatusUpdate {
   artifacts?: Artifact[];
 }
 
+export type HealthCheckResult = boolean | { ok: boolean; reason?: string };
+
 export type SSEEventType =
   | { type: "agent:registered"; agent: AgentCard }
   | { type: "agent:deregistered"; agentName: string }
-  | { type: "agent:status"; agentName: string; status: string }
+  | { type: "agent:status"; agentName: string; status: string; reason?: string }
   | { type: "task:created"; task: Task }
   | { type: "task:routed"; taskId: string; agentName: string; reason: string }
   | { type: "task:progress"; taskId: string; message: string }
