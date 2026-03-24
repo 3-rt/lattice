@@ -79,4 +79,63 @@ describe("Registry", () => {
       expect.objectContaining({ type: "agent:status", agentName: "claude-code", status: "offline" })
     );
   });
+
+  it("should store statusReason when health check returns { ok: false, reason }", async () => {
+    const adapter = createMockAdapter("claude-code");
+    (adapter.healthCheck as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      reason: "CLI not found",
+    });
+    registry.register(adapter);
+    await registry.runHealthChecks();
+    const entry = registry.listAgents().find((a) => a.name === "claude-code");
+    expect(entry?.status).toBe("offline");
+    expect(entry?.statusReason).toBe("CLI not found");
+  });
+
+  it("should clear statusReason when agent comes back online", async () => {
+    const adapter = createMockAdapter("claude-code");
+    const mockHealthCheck = adapter.healthCheck as ReturnType<typeof vi.fn>;
+
+    mockHealthCheck.mockResolvedValue({ ok: false, reason: "CLI not found" });
+    registry.register(adapter);
+    await registry.runHealthChecks();
+    expect(registry.listAgents()[0].statusReason).toBe("CLI not found");
+
+    mockHealthCheck.mockResolvedValue(true);
+    await registry.runHealthChecks();
+    const entry = registry.listAgents()[0];
+    expect(entry.status).toBe("online");
+    expect(entry.statusReason).toBeUndefined();
+  });
+
+  it("should handle boolean health check return (backwards compat)", async () => {
+    const adapter = createMockAdapter("claude-code");
+    (adapter.healthCheck as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+    registry.register(adapter);
+    await registry.runHealthChecks();
+    const entry = registry.listAgents()[0];
+    expect(entry.status).toBe("offline");
+    expect(entry.statusReason).toBeUndefined();
+  });
+
+  it("should include reason in agent:status SSE event", async () => {
+    const handler = vi.fn();
+    bus.on("agent:status", handler);
+    const adapter = createMockAdapter("claude-code");
+    (adapter.healthCheck as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      reason: "Gateway unreachable",
+    });
+    registry.register(adapter);
+    await registry.runHealthChecks();
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "agent:status",
+        agentName: "claude-code",
+        status: "offline",
+        reason: "Gateway unreachable",
+      })
+    );
+  });
 });

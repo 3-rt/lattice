@@ -1,4 +1,4 @@
-import type { LatticeAdapter, AgentCard } from "@lattice/adapter-base";
+import type { LatticeAdapter, AgentCard, HealthCheckResult } from "@lattice/adapter-base";
 import type { LatticeDB } from "./db.js";
 import type { LatticeEventBus } from "./event-bus.js";
 
@@ -7,6 +7,7 @@ export interface AgentEntry {
   card: AgentCard;
   adapter: LatticeAdapter;
   status: "online" | "offline";
+  statusReason?: string;
 }
 
 export interface LatticeRegistry {
@@ -17,6 +18,11 @@ export interface LatticeRegistry {
   listAgents(): AgentEntry[];
   getOnlineAgents(): AgentEntry[];
   runHealthChecks(): Promise<void>;
+}
+
+function normalizeHealthCheck(result: HealthCheckResult): { ok: boolean; reason?: string } {
+  if (typeof result === "boolean") return { ok: result };
+  return { ok: result.ok, reason: result.reason };
 }
 
 export function createRegistry(db: LatticeDB, eventBus: LatticeEventBus): LatticeRegistry {
@@ -42,18 +48,32 @@ export function createRegistry(db: LatticeDB, eventBus: LatticeEventBus): Lattic
     async runHealthChecks() {
       for (const [name, entry] of agents) {
         try {
-          const healthy = await entry.adapter.healthCheck();
-          const newStatus = healthy ? "online" : "offline";
-          if (newStatus !== entry.status) {
+          const result = await entry.adapter.healthCheck();
+          const { ok, reason } = normalizeHealthCheck(result);
+          const newStatus = ok ? "online" : "offline";
+          if (newStatus !== entry.status || (newStatus === "offline" && entry.statusReason !== reason)) {
             entry.status = newStatus;
+            entry.statusReason = ok ? undefined : reason;
             db.updateAgentStatus(name, newStatus);
-            eventBus.emit({ type: "agent:status", agentName: name, status: newStatus });
+            eventBus.emit({
+              type: "agent:status",
+              agentName: name,
+              status: newStatus,
+              ...(reason && !ok ? { reason } : {}),
+            });
           }
-        } catch {
-          if (entry.status !== "offline") {
+        } catch (err) {
+          const reason = err instanceof Error ? err.message : undefined;
+          if (entry.status !== "offline" || entry.statusReason !== reason) {
             entry.status = "offline";
+            entry.statusReason = reason;
             db.updateAgentStatus(name, "offline");
-            eventBus.emit({ type: "agent:status", agentName: name, status: "offline" });
+            eventBus.emit({
+              type: "agent:status",
+              agentName: name,
+              status: "offline",
+              ...(reason ? { reason } : {}),
+            });
           }
         }
       }
