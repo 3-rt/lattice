@@ -4,7 +4,9 @@
 
 **Goal:** Layer Thompson Sampling on top of the existing skill-matching router so the relay learns which agent performs best for each task category over time.
 
-**Architecture:** A task categorizer classifies incoming task text into categories (debugging, code-review, code-generation, etc.) via keyword matching. A learned router samples from Beta distributions built from per-(agent, category) success/failure counts stored in SQLite. The existing simple router and the learned router both implement the `LatticeRouter` interface; `lattice.config.json`'s `routing.strategy` field selects which one is active.
+**Architecture:** A task categorizer classifies incoming task text into categories (debugging, code-review, code-generation, etc.) via keyword matching. A learned router filters candidates to agents whose registered skill IDs match the task category (falling back to all online agents if none match), then samples from Beta distributions built from per-(agent, category) success/failure counts stored in SQLite. The existing simple router and the learned router both implement the `LatticeRouter` interface; `lattice.config.json`'s `routing.strategy` field selects which one is active.
+
+> **Bug fix (2026-03-24):** The learned router originally sampled from all online agents regardless of their skills, meaning agents with no relevant skills could win the sampling (e.g., OpenClaw winning a "code-review" task despite having only messaging/scheduling skills). Fixed by filtering candidates to agents whose `skills[].id` matches the task category before sampling.
 
 **Tech Stack:** TypeScript, Vitest, better-sqlite3 (existing), Beta distribution sampling via `Math.random()` (seedable for tests)
 

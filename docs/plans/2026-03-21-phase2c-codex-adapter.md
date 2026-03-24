@@ -4,7 +4,9 @@
 
 **Goal:** Build an adapter that wraps the Codex CLI via child process, implementing the `LatticeAdapter` interface so Codex can be orchestrated through the Lattice relay.
 
-**Architecture:** In-process TypeScript module that spawns `codex --quiet` as a child process, pipes the task text to stdin, captures stdout/stderr, and maps the output into A2A Artifacts. Exit code 0 = success, non-zero = failure. The Codex binary path is configurable via `lattice.config.json`.
+**Architecture:** In-process TypeScript module that spawns `codex exec <prompt>` as a child process, captures stdout/stderr, and maps the output into A2A Artifacts. Exit code 0 = success, non-zero = failure. The Codex binary path is configurable via `lattice.config.json`.
+
+> **Implementation note:** This plan was originally written using `codex --quiet` for non-interactive execution. The Codex CLI does not support a `--quiet` flag; the correct invocation is `codex exec <prompt>`. See `packages/adapters/codex/src/codex-adapter.ts` for the current implementation.
 
 **Tech Stack:** TypeScript, Node.js `child_process`, Vitest
 

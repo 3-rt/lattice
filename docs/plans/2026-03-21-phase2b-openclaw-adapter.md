@@ -9,6 +9,8 @@
 **Tech Stack:** TypeScript, `ws` (WebSocket client), Vitest
 
 > **Implementation note:** This plan was originally written assuming OpenClaw exposed a REST API (`/v1/chat/completions`). The actual gateway uses a WebSocket JSON-RPC protocol. The inline code examples below reflect the original REST design. See `packages/adapters/openclaw/src/openclaw-adapter.ts` for the current WebSocket-based implementation, and `packages/adapters/openclaw/tests/openclaw-adapter.test.ts` for the updated tests using a mock WebSocket gateway server.
+>
+> **Bug fix (2026-03-24):** The WebSocket connect handshake was missing the `operator.write` scope, causing task execution to fail with "missing scope: operator.write". Fixed by adding `"operator.write"` to the requested scopes array.
 
 **Spec:** `docs/specs/2026-03-21-lattice-design.md` (section: OpenClaw Adapter)
 

@@ -51,11 +51,18 @@ export function createLearnedRouter(
       const seed = options.seed ?? Math.floor(Math.random() * 2147483647);
       const rng = createSeededRandom(seed);
 
-      // Thompson Sampling: sample from Beta(alpha, beta) for each agent
+      // Filter to agents whose registered skills match the category.
+      // If no agents match the category, fall back to all online agents.
+      const matchingAgents = onlineAgents.filter((a) =>
+        a.card.skills.some((s) => s.id === category)
+      );
+      const candidates = matchingAgents.length > 0 ? matchingAgents : onlineAgents;
+
+      // Thompson Sampling: sample from Beta(alpha, beta) for each candidate
       let bestAgent = "";
       let bestSample = -1;
 
-      for (const agent of onlineAgents) {
+      for (const agent of candidates) {
         const key = `${agent.name}::${category}`;
         const stats = statsMap.get(key);
         const alpha = (stats?.successes ?? 0) + 1; // Prior: Beta(1, 1) = Uniform

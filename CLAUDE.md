@@ -122,7 +122,7 @@ All types exported from `@lattice/adapter-base`.
 
 ```bash
 npm install                          # Install all workspace deps
-npx vitest run                       # Run all tests (45 passing)
+npx vitest run                       # Run all tests (195 passing)
 npx tsx packages/relay/src/main.ts   # Start relay server on :3100
 ```
 

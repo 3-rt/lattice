@@ -25,7 +25,7 @@ Dashboard (React + Vite)  ◄──── SSE ────►  Relay (Express + 
 # Install dependencies
 npm install
 
-# Run tests (193 passing)
+# Run tests (195 passing)
 npx vitest run
 
 # Set the OpenClaw gateway token (required for OpenClaw adapter)

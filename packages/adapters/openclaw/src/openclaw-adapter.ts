@@ -184,7 +184,7 @@ class OpenClawGatewayClient {
                   instanceId: randomUUID(),
                 },
                 role: "operator",
-                scopes: ["operator.admin", "operator.read", "operator.approvals"],
+                scopes: ["operator.admin", "operator.read", "operator.write", "operator.approvals"],
                 caps: [],
                 auth: { token: this.token },
               },

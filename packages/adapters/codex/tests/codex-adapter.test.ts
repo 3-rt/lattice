@@ -65,7 +65,7 @@ describe("CodexAdapter", () => {
   });
 
   describe("executeTask", () => {
-    it("should spawn codex with --quiet flag and return stdout as artifact", async () => {
+    it("should spawn codex exec subcommand and return stdout as artifact", async () => {
       mockExecFileSuccess("Fixed the bug in auth.ts\n```diff\n-old\n+new\n```");
 
       const adapter = createAdapter();
@@ -74,7 +74,7 @@ describe("CodexAdapter", () => {
 
       expect(mockExecFile).toHaveBeenCalledWith(
         "/usr/local/bin/codex",
-        expect.arrayContaining(["--quiet"]),
+        expect.arrayContaining(["exec"]),
         expect.any(Object),
         expect.any(Function)
       );
@@ -116,7 +116,7 @@ describe("CodexAdapter", () => {
       await adapter.executeTask(task);
 
       const args = mockExecFile.mock.calls[0][1] as string[];
-      const prompt = args[args.indexOf("--quiet") + 1] ?? args[args.length - 1];
+      const prompt = args[args.indexOf("exec") + 1] ?? args[args.length - 1];
       expect(prompt).toContain("initial request");
       expect(prompt).toContain("auth.ts");
     });

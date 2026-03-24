@@ -81,7 +81,7 @@ export function createCodexAdapter(config: CodexConfig): LatticeAdapter {
       const prompt = buildPrompt(task);
 
       try {
-        const { stdout } = await runCodex(codexPath, ["--quiet", prompt]);
+        const { stdout } = await runCodex(codexPath, ["exec", prompt]);
         const artifact: Artifact = {
           name: "result",
           parts: [{ type: "text", text: stdout.trim() }],

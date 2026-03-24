@@ -6,14 +6,18 @@ import { createDatabase, type LatticeDB } from "../src/db.js";
 import { createEventBus } from "../src/event-bus.js";
 import type { LatticeAdapter, AgentCard } from "@lattice/adapter-base";
 
-function createMockAdapter(name: string, skillTags: string[]): LatticeAdapter {
+function createMockAdapter(
+  name: string,
+  skillTags: string[],
+  skills?: Array<{ id: string; name: string; description: string; tags: string[] }>
+): LatticeAdapter {
   const card: AgentCard = {
     name,
     description: `Mock ${name}`,
     url: `http://localhost:3100/a2a/agents/${name}`,
     version: "1.0.0",
     capabilities: { streaming: false, pushNotifications: false },
-    skills: [{ id: "skill-1", name: "Skill", description: "A skill", tags: skillTags }],
+    skills: skills ?? [{ id: "skill-1", name: "Skill", description: "A skill", tags: skillTags }],
     authentication: { schemes: [] },
   };
   return {
@@ -100,6 +104,44 @@ describe("LearnedRouter", () => {
     const router = createLearnedRouter(registry, db, { seed: 42 });
     const result = router.route("fix the bug");
     expect(result.agentName).toBe("only-agent");
+  });
+
+  it("should prefer agents with matching skills over unrelated agents", () => {
+    // Reproduces: "check my claude-code usage" routed to openclaw (no code-review skill)
+    // instead of claude-code (has code-review skill)
+    const claudeCode = createMockAdapter("claude-code", [], [
+      { id: "code-review", name: "Code Review", description: "Review code", tags: ["review", "check"] },
+      { id: "code-generation", name: "Code Gen", description: "Write code", tags: ["write", "create"] },
+    ]);
+    const openclaw = createMockAdapter("openclaw", [], [
+      { id: "messaging", name: "Messaging", description: "Send messages", tags: ["message", "send"] },
+      { id: "scheduling", name: "Scheduling", description: "Schedule tasks", tags: ["schedule", "reminder"] },
+    ]);
+    registry.register(claudeCode);
+    registry.register(openclaw);
+
+    // With no prior stats, every seed should route code-review tasks to claude-code
+    for (let s = 0; s < 50; s++) {
+      const router = createLearnedRouter(registry, db, { seed: s });
+      const result = router.route("check my claude-code usage");
+      expect(result.agentName).toBe("claude-code");
+    }
+  });
+
+  it("should fall back to all agents when none match the category", () => {
+    const agentA = createMockAdapter("agent-a", [], [
+      { id: "messaging", name: "Messaging", description: "Send messages", tags: ["message"] },
+    ]);
+    const agentB = createMockAdapter("agent-b", [], [
+      { id: "scheduling", name: "Scheduling", description: "Schedule tasks", tags: ["schedule"] },
+    ]);
+    registry.register(agentA);
+    registry.register(agentB);
+
+    // "fix the bug" → debugging category, neither agent has it → fall back to both
+    const router = createLearnedRouter(registry, db, { seed: 42 });
+    const result = router.route("fix the bug");
+    expect(["agent-a", "agent-b"]).toContain(result.agentName);
   });
 
   it("should use different categories for different task types", () => {
