@@ -8,6 +8,8 @@
 
 **Tech Stack:** TypeScript, `ws` (WebSocket client), Vitest
 
+> **Implementation note:** This plan was originally written assuming OpenClaw exposed a REST API (`/v1/chat/completions`). The actual gateway uses a WebSocket JSON-RPC protocol. The inline code examples below reflect the original REST design. See `packages/adapters/openclaw/src/openclaw-adapter.ts` for the current WebSocket-based implementation, and `packages/adapters/openclaw/tests/openclaw-adapter.test.ts` for the updated tests using a mock WebSocket gateway server.
+
 **Spec:** `docs/specs/2026-03-21-lattice-design.md` (section: OpenClaw Adapter)
 
 **Depends on:** Phase 2a Task 4 (adapter loading pattern in `main.ts`)

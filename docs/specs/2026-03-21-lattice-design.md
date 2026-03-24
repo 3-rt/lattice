@@ -484,7 +484,7 @@ lattice/
     },
     "openclaw": {
       "enabled": true,
-      "gatewayUrl": "http://localhost:18789",
+      "gatewayUrl": "http://localhost:18789",  // use remote IP for cross-machine setup
       "gatewayToken": "${OPENCLAW_GATEWAY_TOKEN}"
     },
     "codex": {
