@@ -5,11 +5,28 @@ import type { LatticeEventBus } from "./event-bus.js";
 import type { LatticeRegistry } from "./registry.js";
 import type { LatticeRouter } from "./router.js";
 import { categorize } from "./categorizer.js";
+import { translateError } from "./error-messages.js";
 
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 // In-memory store for explicit agent preferences (to avoid FK constraint issues)
 const explicitAgentPrefs = new Map<string, string>();
+
+function translateTaskArtifacts(task: Task): Task {
+  if (task.status !== "failed") return task;
+  const translated = task.artifacts.map((artifact) => {
+    if (artifact.name !== "error") return artifact;
+    const rawText = artifact.parts[0]?.text;
+    if (!rawText) return artifact;
+    const { message, detail } = translateError(rawText);
+    return {
+      ...artifact,
+      parts: [{ ...artifact.parts[0], text: message }],
+      ...(detail ? { detail } : {}),
+    };
+  });
+  return { ...task, artifacts: translated };
+}
 
 function rowToTask(row: TaskRow): Task {
   const history: Message[] = JSON.parse(row.history);
@@ -107,7 +124,7 @@ export function createTaskManager(
         db.updateTask(taskId, { status: "failed", result: JSON.stringify({ error: errorMsg }) });
         const failedTask = rowToTask(db.getTask(taskId)!);
         eventBus.emit({ type: "task:failed", taskId, error: errorMsg });
-        return failedTask;
+        return translateTaskArtifacts(failedTask);
       }
 
       // Categorize the task text for routing stats
@@ -130,7 +147,7 @@ export function createTaskManager(
         db.updateTask(taskId, { status: "failed", result: JSON.stringify({ error: errorMsg }) });
         const failedTask = rowToTask(db.getTask(taskId)!);
         eventBus.emit({ type: "task:failed", taskId, error: errorMsg });
-        return failedTask;
+        return translateTaskArtifacts(failedTask);
       }
 
       // Build the task object to pass to the adapter
@@ -159,7 +176,21 @@ export function createTaskManager(
         db.updateRoutingStats(agentName, category, false, latencyMs, 0);
         const failedTask = rowToTask(db.getTask(taskId)!);
         eventBus.emit({ type: "task:failed", taskId, error: errorMsg });
-        return failedTask;
+        return translateTaskArtifacts(failedTask);
+      }
+
+      // Handle adapter-returned failures (status set to "failed" by adapter, not thrown)
+      if (resultTask.status === "failed") {
+        const latencyMs = Date.now() - startTime;
+        db.updateTask(taskId, {
+          status: "failed",
+          result: JSON.stringify(resultTask.artifacts ?? []),
+          latency_ms: latencyMs,
+        });
+        db.updateRoutingStats(agentName, category, false, latencyMs, 0);
+        const failedTask = rowToTask(db.getTask(taskId)!);
+        eventBus.emit({ type: "task:failed", taskId, error: failedTask.artifacts[0]?.parts[0]?.text ?? "Unknown error" });
+        return translateTaskArtifacts(failedTask);
       }
 
       // Success path
