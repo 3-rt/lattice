@@ -32,33 +32,73 @@ const app = createApp({ db, registry, taskManager, bus, workflowEngine });
 async function loadAdapters() {
   const adapters = config.adapters ?? {};
 
+  console.log("\n  Lattice\n");
+  console.log("  Adapters:");
+
   if (adapters["claude-code"]?.enabled) {
     try {
       const { createClaudeCodeAdapter } = await import("@lattice/adapter-claude-code").catch(
         () => import("../../adapters/claude-code/src/index.ts")
       );
-      registry.register(createClaudeCodeAdapter());
-      console.log("  ✓ claude-code adapter loaded");
+      const adapter = createClaudeCodeAdapter();
+      registry.register(adapter);
+      const result = await adapter.healthCheck();
+      const { ok, reason } = typeof result === "boolean" ? { ok: result, reason: undefined } : result;
+      if (!ok) {
+        const entry = registry.listAgents().find((a) => a.name === "claude-code");
+        if (entry) { entry.status = "offline"; entry.statusReason = reason; }
+        console.log(`  \u26A0 claude-code     ${reason ?? "offline"}`);
+      } else {
+        console.log("  \u2713 claude-code     ready");
+      }
     } catch (err) {
-      console.error("  ✗ claude-code adapter failed to load:", err instanceof Error ? err.message : err);
+      console.log(`  \u2717 claude-code     ${err instanceof Error ? err.message : err}`);
     }
   }
 
   if (adapters["openclaw"]?.enabled) {
-    try {
-      const { createOpenClawAdapter } = await import("@lattice/adapter-openclaw").catch(
-        () => import("../../adapters/openclaw/src/index.ts")
-      );
-      const gatewayUrl = adapters["openclaw"].gatewayUrl ?? "http://localhost:18789";
-      const gatewayToken =
-        adapters["openclaw"].gatewayToken?.replace(
-          "${OPENCLAW_GATEWAY_TOKEN}",
-          process.env.OPENCLAW_GATEWAY_TOKEN ?? ""
-        ) ?? process.env.OPENCLAW_GATEWAY_TOKEN ?? "";
-      registry.register(createOpenClawAdapter({ gatewayUrl, gatewayToken }));
-      console.log("  ✓ openclaw adapter loaded");
-    } catch (err) {
-      console.error("  ✗ openclaw adapter failed to load:", err instanceof Error ? err.message : err);
+    const gatewayToken =
+      adapters["openclaw"].gatewayToken?.replace(
+        "${OPENCLAW_GATEWAY_TOKEN}",
+        process.env.OPENCLAW_GATEWAY_TOKEN ?? ""
+      ) ?? process.env.OPENCLAW_GATEWAY_TOKEN ?? "";
+
+    if (!gatewayToken) {
+      console.log("  \u26A0 openclaw        OPENCLAW_GATEWAY_TOKEN not set");
+      console.log('                    \u2192 Set it with: export OPENCLAW_GATEWAY_TOKEN="your-token"');
+      try {
+        const { createOpenClawAdapter } = await import("@lattice/adapter-openclaw").catch(
+          () => import("../../adapters/openclaw/src/index.ts")
+        );
+        const gatewayUrl = adapters["openclaw"].gatewayUrl ?? "http://localhost:18789";
+        const adapter = createOpenClawAdapter({ gatewayUrl, gatewayToken: "" });
+        registry.register(adapter);
+        const entry = registry.listAgents().find((a) => a.name === "openclaw");
+        if (entry) {
+          entry.status = "offline";
+          entry.statusReason = "Gateway token not configured. Set OPENCLAW_GATEWAY_TOKEN in your environment.";
+        }
+      } catch { /* ignore — adapter couldn't even load */ }
+    } else {
+      try {
+        const { createOpenClawAdapter } = await import("@lattice/adapter-openclaw").catch(
+          () => import("../../adapters/openclaw/src/index.ts")
+        );
+        const gatewayUrl = adapters["openclaw"].gatewayUrl ?? "http://localhost:18789";
+        const adapter = createOpenClawAdapter({ gatewayUrl, gatewayToken });
+        registry.register(adapter);
+        const result = await adapter.healthCheck();
+        const { ok, reason } = typeof result === "boolean" ? { ok: result, reason: undefined } : result;
+        if (!ok) {
+          const entry = registry.listAgents().find((a) => a.name === "openclaw");
+          if (entry) { entry.status = "offline"; entry.statusReason = reason; }
+          console.log(`  \u26A0 openclaw        ${reason ?? "offline"}`);
+        } else {
+          console.log("  \u2713 openclaw        ready");
+        }
+      } catch (err) {
+        console.log(`  \u2717 openclaw        ${err instanceof Error ? err.message : err}`);
+      }
     }
   }
 
@@ -68,12 +108,23 @@ async function loadAdapters() {
         () => import("../../adapters/codex/src/index.ts")
       );
       const codexPath = adapters["codex"].codexPath ?? "codex";
-      registry.register(createCodexAdapter({ codexPath }));
-      console.log("  ✓ codex adapter loaded");
+      const adapter = createCodexAdapter({ codexPath });
+      registry.register(adapter);
+      const result = await adapter.healthCheck();
+      const { ok, reason } = typeof result === "boolean" ? { ok: result, reason: undefined } : result;
+      if (!ok) {
+        const entry = registry.listAgents().find((a) => a.name === "codex");
+        if (entry) { entry.status = "offline"; entry.statusReason = reason; }
+        console.log(`  \u26A0 codex           ${reason ?? "offline"}`);
+      } else {
+        console.log("  \u2713 codex           ready");
+      }
     } catch (err) {
-      console.error("  ✗ codex adapter failed to load:", err instanceof Error ? err.message : err);
+      console.log(`  \u2717 codex           ${err instanceof Error ? err.message : err}`);
     }
   }
+
+  console.log();
 }
 
 loadAdapters().then(() => {
@@ -82,20 +133,23 @@ loadAdapters().then(() => {
     config.workflows?.seedDir ?? "workflows"
   );
   const seedResult = seedWorkflows(db, workflowDir);
-  if (seedResult.loaded > 0) {
-    console.log(`  Seeded ${seedResult.loaded} workflow(s) from ${workflowDir}`);
-  }
-  if (seedResult.skipped > 0) {
-    console.log(`  Skipped ${seedResult.skipped} existing workflow(s)`);
-  }
-  for (const error of seedResult.errors) {
-    console.error(`  ✗ workflow seed error: ${error}`);
+  if (seedResult.loaded > 0 || seedResult.skipped > 0) {
+    console.log("  Workflows:");
+    if (seedResult.loaded > 0) console.log(`    \u2713 ${seedResult.loaded} workflow(s) loaded`);
+    if (seedResult.skipped > 0) console.log(`    \u2713 ${seedResult.skipped} existing workflow(s)`);
+    for (const error of seedResult.errors) {
+      console.log(`    \u2717 ${error}`);
+    }
+    console.log();
   }
 
+  const onlineCount = registry.getOnlineAgents().length;
+  const totalCount = registry.listAgents().length;
+
   app.listen(port, host, () => {
-    console.log(`Lattice relay server running at http://${host}:${port}`);
-    console.log(`SSE endpoint: http://${host}:${port}/api/events`);
-    console.log(`Agents registered: ${registry.listAgents().length}`);
+    console.log(`  Relay running at http://${host}:${port}`);
+    console.log(`  Agents online: ${onlineCount} of ${totalCount}`);
+    console.log();
   });
 
   setInterval(() => registry.runHealthChecks(), 30_000);
