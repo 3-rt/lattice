@@ -5,6 +5,7 @@ import type {
   Task,
   TaskStatusUpdate,
   Artifact,
+  HealthCheckResult,
 } from "@lattice/adapter-base";
 
 export interface CodexConfig {
@@ -121,12 +122,16 @@ export function createCodexAdapter(config: CodexConfig): LatticeAdapter {
       };
     },
 
-    async healthCheck(): Promise<boolean> {
+    async healthCheck(): Promise<HealthCheckResult> {
       try {
         await runCodex(codexPath, ["--version"]);
-        return true;
-      } catch {
-        return false;
+        return { ok: true };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const reason = /ENOENT/.test(msg)
+          ? "Codex CLI not found. Install it from: https://github.com/openai/codex"
+          : `Codex CLI error: ${msg}`;
+        return { ok: false, reason };
       }
     },
   };

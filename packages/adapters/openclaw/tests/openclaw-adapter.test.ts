@@ -277,18 +277,18 @@ describe("OpenClawAdapter", () => {
   });
 
   describe("healthCheck", () => {
-    it("should return true when gateway is connected", async () => {
+    it("should return { ok: true } when gateway is connected", async () => {
       mockGateway = createMockGateway();
 
       const adapter = createAdapter(mockGateway.port);
       const healthy = await adapter.healthCheck();
-      expect(healthy).toBe(true);
+      expect(healthy).toEqual({ ok: true });
     });
 
-    it("should return false when gateway is down", async () => {
+    it("should return { ok: false, reason } when gateway is down", async () => {
       const adapter = createAdapter(19999);
       const healthy = await adapter.healthCheck();
-      expect(healthy).toBe(false);
+      expect(healthy).toEqual({ ok: false, reason: expect.any(String) });
     });
   });
 });

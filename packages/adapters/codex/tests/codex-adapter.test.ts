@@ -123,7 +123,7 @@ describe("CodexAdapter", () => {
   });
 
   describe("healthCheck", () => {
-    it("should return true when codex binary exists", async () => {
+    it("should return { ok: true } when codex binary exists", async () => {
       mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
         const cb = (typeof _opts === "function" ? _opts : callback) as Function;
         cb(null, "codex v0.1.0", "");
@@ -132,10 +132,10 @@ describe("CodexAdapter", () => {
 
       const adapter = createAdapter();
       const healthy = await adapter.healthCheck();
-      expect(healthy).toBe(true);
+      expect(healthy).toEqual({ ok: true });
     });
 
-    it("should return false when codex binary is not found", async () => {
+    it("should return { ok: false, reason } when codex binary is not found", async () => {
       mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
         const cb = (typeof _opts === "function" ? _opts : callback) as Function;
         cb(new Error("ENOENT"), "", "");
@@ -144,7 +144,7 @@ describe("CodexAdapter", () => {
 
       const adapter = createAdapter();
       const healthy = await adapter.healthCheck();
-      expect(healthy).toBe(false);
+      expect(healthy).toEqual({ ok: false, reason: expect.any(String) });
     });
   });
 });

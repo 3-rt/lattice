@@ -175,10 +175,10 @@ describe("ClaudeCodeAdapter", () => {
   });
 
   describe("healthCheck", () => {
-    it("should return true when claude binary is found", async () => {
+    it("should return { ok: true } when claude binary is found", async () => {
       mockSpawn.mockReturnValue(fakeProcess("1.0.0"));
       const healthy = await adapter.healthCheck();
-      expect(healthy).toBe(true);
+      expect(healthy).toEqual({ ok: true });
       expect(mockSpawn).toHaveBeenCalledWith(
         "claude",
         ["--version"],
@@ -186,10 +186,10 @@ describe("ClaudeCodeAdapter", () => {
       );
     });
 
-    it("should return false when claude binary is not found", async () => {
+    it("should return { ok: false, reason } when claude binary is not found", async () => {
       mockSpawn.mockReturnValue(fakeProcess("", "", 127));
       const healthy = await adapter.healthCheck();
-      expect(healthy).toBe(false);
+      expect(healthy).toEqual({ ok: false, reason: expect.any(String) });
     });
   });
 

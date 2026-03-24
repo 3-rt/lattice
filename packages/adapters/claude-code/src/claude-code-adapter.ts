@@ -6,6 +6,7 @@ import type {
   Task,
   TaskStatusUpdate,
   Artifact,
+  HealthCheckResult,
 } from "@lattice/adapter-base";
 
 const AGENT_CARD: AgentCard = {
@@ -258,15 +259,24 @@ export function createClaudeCodeAdapter(): LatticeAdapter {
       }
     },
 
-    async healthCheck(): Promise<boolean> {
-      // Just verify the claude binary is reachable — don't run a full prompt
-      // which requires auth and costs a subprocess + API call.
+    async healthCheck(): Promise<HealthCheckResult> {
       return new Promise((resolve) => {
         const child = spawn(claudeBin(), ["--version"], {
           stdio: ["ignore", "pipe", "ignore"],
         });
-        child.on("error", () => resolve(false));
-        child.on("close", (code) => resolve(code === 0));
+        child.on("error", (err) => {
+          const reason = /ENOENT/.test(err.message)
+            ? "Claude CLI not found. Install it with: npm install -g @anthropic-ai/claude-code"
+            : "Claude CLI exited with an error. Run 'claude --version' to check your setup.";
+          resolve({ ok: false, reason });
+        });
+        child.on("close", (code) => {
+          if (code === 0) {
+            resolve({ ok: true });
+          } else {
+            resolve({ ok: false, reason: "Claude CLI exited with an error. Run 'claude --version' to check your setup." });
+          }
+        });
       });
     },
   };

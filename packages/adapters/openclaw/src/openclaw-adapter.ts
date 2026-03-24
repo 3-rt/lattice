@@ -6,6 +6,7 @@ import type {
   Task,
   TaskStatusUpdate,
   Artifact,
+  HealthCheckResult,
 } from "@lattice/adapter-base";
 
 export interface OpenClawConfig {
@@ -384,12 +385,25 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
       };
     },
 
-    async healthCheck(): Promise<boolean> {
+    async healthCheck(): Promise<HealthCheckResult> {
+      if (!token) {
+        return { ok: false, reason: "Gateway token not configured. Set OPENCLAW_GATEWAY_TOKEN in your environment." };
+      }
       try {
         const gw = await getClient();
-        return gw.isConnected();
-      } catch {
-        return false;
+        if (!gw.isConnected()) {
+          return { ok: false, reason: `Can't reach OpenClaw gateway at ${wsUrl}. Check that the gateway is running.` };
+        }
+        return { ok: true };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (/timeout/i.test(msg)) {
+          return { ok: false, reason: `Can't reach OpenClaw gateway at ${wsUrl}. Check that the gateway is running.` };
+        }
+        if (/rejected|auth|scope/i.test(msg)) {
+          return { ok: false, reason: "Gateway rejected the token. Check that your OPENCLAW_GATEWAY_TOKEN has the right permissions." };
+        }
+        return { ok: false, reason: msg };
       }
     },
   };
