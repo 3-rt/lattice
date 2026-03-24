@@ -47,3 +47,9 @@ export function getRoutingStatsSummary(row: RoutingStatsRow): {
     averageLatencyMs: total > 0 ? Math.round(row.total_latency_ms / total) : 0,
   };
 }
+
+export function getTaskErrorDetail(task: TaskInfo): string | undefined {
+  if (task.status !== "failed") return undefined;
+  const errorArtifact = task.artifacts?.find((a) => a.name === "error");
+  return errorArtifact?.detail;
+}

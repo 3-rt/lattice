@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { clsx } from "clsx";
 import type { TaskInfo } from "../../lib/api.ts";
-import { getTaskInputText, getTaskOutputText } from "./task-utils.ts";
+import { getTaskInputText, getTaskOutputText, getTaskErrorDetail } from "./task-utils.ts";
 
 interface TaskRowProps {
   task: TaskInfo;
@@ -20,8 +20,10 @@ const statusColors: Record<string, string> = {
 
 export function TaskRow({ task }: TaskRowProps) {
   const [expanded, setExpanded] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
   const inputText = getTaskInputText(task);
   const outputText = getTaskOutputText(task);
+  const errorDetail = getTaskErrorDetail(task);
   const latency = task.metadata?.latencyMs;
   const createdAt = task.metadata?.createdAt
     ? new Date(task.metadata.createdAt).toLocaleTimeString()
@@ -106,6 +108,23 @@ export function TaskRow({ task }: TaskRowProps) {
                   <pre className="mt-0.5 max-h-48 overflow-y-auto whitespace-pre-wrap rounded border border-gray-800 bg-gray-950 p-3 text-xs text-gray-300">
                     {outputText}
                   </pre>
+                </div>
+              )}
+
+              {errorDetail && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDetail((v) => !v)}
+                    className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                  >
+                    {showDetail ? "Hide details" : "Show details"}
+                  </button>
+                  {showDetail && (
+                    <pre className="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap rounded border border-gray-800 bg-gray-950 p-2 text-[10px] text-gray-600">
+                      {errorDetail}
+                    </pre>
+                  )}
                 </div>
               )}
 
