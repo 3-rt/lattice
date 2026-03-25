@@ -75,9 +75,17 @@ lattice/
 - **3c:** Learned Router — Thompson Sampling multi-armed bandit
 
 ### Phase 4 — Integration
-- **4a:** Workflow UI (editor + runner)
+- **4a:** Workflow UI (editor + runner) — Editor drag-drop working, node palette + canvas + properties panel
 - **4b:** Routing Stats UI
 - **4c:** End-to-end polish + demo script
+
+## React Flow Patterns (workflow editor)
+
+The workflow editor uses React Flow as a controlled component with an external Zustand store. Key patterns:
+
+- **Coordinate conversion:** Use `onInit` to capture `ReactFlowInstance`, then `rfInstance.screenToFlowPosition()` for drag-drop positioning. Do NOT use `useReactFlow()` from an outer `ReactFlowProvider`.
+- **Stale closures:** `onNodesChange` and `onEdgesChange` callbacks must use `useRef` for `rfNodes`/`editorNodes`/`rfEdges` to avoid stale closure bugs. React Flow's `StoreUpdater` syncs callbacks via `useEffect`, so closure-captured state may be outdated when the callback fires.
+- **Dimension changes:** Filter `type: "dimensions"` out of `onNodesChange` — syncing dimensions back to external state causes infinite render loops. React Flow tracks dimensions internally.
 
 ## Key API Contract (Phase 1 provides this)
 

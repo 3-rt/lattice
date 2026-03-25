@@ -13,6 +13,7 @@ import {
   type Node,
   type OnEdgesChange,
   type OnNodesChange,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { FilePlus, Save } from "lucide-react";
@@ -43,6 +44,89 @@ function nextNodeId() {
   return `node-${Date.now()}-${idCounter}`;
 }
 
+function WorkflowCanvas({
+  rfNodes,
+  rfEdges,
+  onNodesChange,
+  onEdgesChange,
+  onConnect,
+  onNodeClick,
+  onPaneClick,
+}: {
+  rfNodes: Node[];
+  rfEdges: Edge[];
+  onNodesChange: OnNodesChange;
+  onEdgesChange: OnEdgesChange;
+  onConnect: (connection: Connection) => void;
+  onNodeClick: (_: React.MouseEvent, node: Node) => void;
+  onPaneClick: () => void;
+}) {
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const addEditorNode = useWorkflowStore((state) => state.addEditorNode);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const nodeType = event.dataTransfer.getData("application/lattice-node-type");
+      if (!nodeType || !rfInstance) return;
+
+      const position = rfInstance.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      addEditorNode({
+        id: nextNodeId(),
+        type: nodeType as EditorNode["type"],
+        label: nodeType === "agent-task" ? "New Task" : "Condition",
+        config:
+          nodeType === "agent-task"
+            ? { agent: "auto", taskTemplate: "" }
+            : { field: "", operator: "equals", value: "" },
+        position,
+      });
+
+      setTimeout(() => rfInstance.fitView({ padding: 0.3, duration: 300 }), 50);
+    },
+    [rfInstance, addEditorNode]
+  );
+
+  return (
+    <ReactFlow
+      nodes={rfNodes}
+      edges={rfEdges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      onNodeClick={onNodeClick}
+      onPaneClick={onPaneClick}
+      onInit={setRfInstance}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={onDrop}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      connectionMode={ConnectionMode.Loose}
+      fitView
+      fitViewOptions={{ padding: 0.3 }}
+      proOptions={{ hideAttribution: true }}
+      minZoom={0.3}
+      maxZoom={2}
+      defaultEdgeOptions={{ type: "workflow" }}
+    >
+      <Background
+        variant={BackgroundVariant.Dots}
+        gap={20}
+        size={1}
+        color="rgba(75, 85, 99, 0.15)"
+      />
+      <Controls className="!rounded-md !border-gray-700 !bg-gray-900 [&>button]:!border-gray-700 [&>button]:!bg-gray-800 [&>button]:!text-gray-400 [&>button:hover]:!bg-gray-700" />
+    </ReactFlow>
+  );
+}
+
 export function WorkflowEditor() {
   const editorNodes = useWorkflowStore((state) => state.editorNodes);
   const editorEdges = useWorkflowStore((state) => state.editorEdges);
@@ -50,13 +134,15 @@ export function WorkflowEditor() {
   const setEditorNodes = useWorkflowStore((state) => state.setEditorNodes);
   const setEditorEdges = useWorkflowStore((state) => state.setEditorEdges);
   const setSelectedNodeId = useWorkflowStore((state) => state.setSelectedNodeId);
-  const addEditorNode = useWorkflowStore((state) => state.addEditorNode);
   const setWorkflowName = useWorkflowStore((state) => state.setWorkflowName);
   const workflowName = useWorkflowStore((state) => state.workflowName);
   const addWorkflow = useWorkflowStore((state) => state.addWorkflow);
   const clearEditor = useWorkflowStore((state) => state.clearEditor);
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
+
+  const rfNodesRef = useRef<Node[]>([]);
+  const editorNodesRef = useRef<EditorNode[]>([]);
+  const rfEdgesRef = useRef<Edge[]>([]);
 
   const rfNodes: Node[] = useMemo(
     () =>
@@ -96,11 +182,21 @@ export function WorkflowEditor() {
     [editorEdges]
   );
 
+  // Keep refs always current so callbacks never capture stale values
+  rfNodesRef.current = rfNodes;
+  editorNodesRef.current = editorNodes;
+  rfEdgesRef.current = rfEdges;
+
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
-      const changedNodes = applyNodeChanges(changes, rfNodes);
+      // Dimension changes are tracked internally by React Flow — syncing them
+      // back to our store would trigger an infinite re-render loop.
+      const meaningful = changes.filter((c) => c.type !== "dimensions");
+      if (meaningful.length === 0) return;
+
+      const changedNodes = applyNodeChanges(meaningful, rfNodesRef.current);
       const nextNodes: EditorNode[] = changedNodes.map((rfNode) => {
-        const existing = editorNodes.find((node) => node.id === rfNode.id);
+        const existing = editorNodesRef.current.find((node) => node.id === rfNode.id);
         return {
           id: rfNode.id,
           type: (rfNode.type as EditorNode["type"]) ?? "agent-task",
@@ -111,18 +207,18 @@ export function WorkflowEditor() {
       });
       setEditorNodes(nextNodes);
 
-      for (const change of changes) {
+      for (const change of meaningful) {
         if (change.type === "select" && change.selected) {
           setSelectedNodeId(change.id);
         }
       }
     },
-    [editorNodes, rfNodes, setEditorNodes, setSelectedNodeId]
+    [setEditorNodes, setSelectedNodeId]
   );
 
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
-      const changedEdges = applyEdgeChanges(changes, rfEdges);
+      const changedEdges = applyEdgeChanges(changes, rfEdgesRef.current);
       setEditorEdges(
         changedEdges.map((edge) => ({
           id: edge.id,
@@ -133,7 +229,7 @@ export function WorkflowEditor() {
         }))
       );
     },
-    [rfEdges, setEditorEdges]
+    [setEditorEdges]
   );
 
   const onConnect = useCallback(
@@ -153,36 +249,6 @@ export function WorkflowEditor() {
       );
     },
     [rfEdges, setEditorEdges]
-  );
-
-  const onDrop = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      const nodeType = event.dataTransfer.getData(
-        "application/lattice-node-type"
-      );
-      if (!nodeType) return;
-
-      const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-      if (!bounds) return;
-
-      const position = {
-        x: event.clientX - bounds.left - 100,
-        y: event.clientY - bounds.top - 30,
-      };
-
-      addEditorNode({
-        id: nextNodeId(),
-        type: nodeType as EditorNode["type"],
-        label: nodeType === "agent-task" ? "New Task" : "Condition",
-        config:
-          nodeType === "agent-task"
-            ? { agent: "auto", taskTemplate: "" }
-            : { field: "", operator: "equals", value: "" },
-        position,
-      });
-    },
-    [addEditorNode]
   );
 
   async function handleSave() {
@@ -253,38 +319,16 @@ export function WorkflowEditor() {
         </div>
       </div>
 
-      <div className="min-w-0 flex-1" ref={reactFlowWrapper}>
-        <ReactFlow
-          nodes={rfNodes}
-          edges={rfEdges}
+      <div className="min-w-0 flex-1">
+        <WorkflowCanvas
+          rfNodes={rfNodes}
+          rfEdges={rfEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={(_, node) => setSelectedNodeId(node.id)}
           onPaneClick={() => setSelectedNodeId(null)}
-          onDragOver={(event) => {
-            event.preventDefault();
-            event.dataTransfer.dropEffect = "move";
-          }}
-          onDrop={onDrop}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          connectionMode={ConnectionMode.Loose}
-          fitView
-          fitViewOptions={{ padding: 0.3 }}
-          proOptions={{ hideAttribution: true }}
-          minZoom={0.3}
-          maxZoom={2}
-          defaultEdgeOptions={{ type: "workflow" }}
-        >
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            color="rgba(75, 85, 99, 0.15)"
-          />
-          <Controls className="!rounded-md !border-gray-700 !bg-gray-900 [&>button]:!border-gray-700 [&>button]:!bg-gray-800 [&>button]:!text-gray-400 [&>button:hover]:!bg-gray-700" />
-        </ReactFlow>
+        />
       </div>
 
       <div className="w-56 shrink-0 overflow-y-auto border-l border-gray-800">
