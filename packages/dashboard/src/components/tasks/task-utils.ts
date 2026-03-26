@@ -51,5 +51,8 @@ export function getRoutingStatsSummary(row: RoutingStatsRow): {
 export function getTaskErrorDetail(task: TaskInfo): string | undefined {
   if (task.status !== "failed") return undefined;
   const errorArtifact = task.artifacts?.find((a) => a.name === "error");
-  return errorArtifact?.detail;
+  return errorArtifact?.parts
+    ?.filter((p) => p.type === "text" && typeof p.text === "string")
+    .map((p) => p.text!)
+    .join("\n") || undefined;
 }

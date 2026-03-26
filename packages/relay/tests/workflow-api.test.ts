@@ -116,6 +116,54 @@ describe("Workflow API", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /api/workflows — should return 400 without definition", async () => {
+    const res = await request(app).post("/api/workflows").send({ name: "No Def" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it("POST /api/workflows — should return 400 if definition missing nodes", async () => {
+    const res = await request(app).post("/api/workflows").send({ name: "Bad", definition: { edges: [] } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/nodes/);
+  });
+
+  it("POST /api/workflows — should return 400 if definition missing edges", async () => {
+    const res = await request(app).post("/api/workflows").send({ name: "Bad", definition: { nodes: [] } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/edges/);
+  });
+
+  it("POST /api/workflows — should return 400 if node missing id", async () => {
+    const res = await request(app).post("/api/workflows").send({
+      name: "Bad",
+      definition: { nodes: [{ type: "agent-task", label: "x", config: {} }], edges: [] },
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/id/);
+  });
+
+  it("POST /api/workflows — should return 400 if node has invalid type", async () => {
+    const res = await request(app).post("/api/workflows").send({
+      name: "Bad",
+      definition: { nodes: [{ id: "n1", type: "unknown", label: "x", config: {} }], edges: [] },
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/type/);
+  });
+
+  it("POST /api/workflows — should return 400 if edge references unknown node", async () => {
+    const res = await request(app).post("/api/workflows").send({
+      name: "Bad",
+      definition: {
+        nodes: [{ id: "n1", type: "agent-task", label: "x", config: { agent: "auto", taskTemplate: "do it" } }],
+        edges: [{ source: "n1", target: "n99" }],
+      },
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/n99/);
+  });
+
   it("POST /api/workflows/:id/run — should return 404 for missing workflow", async () => {
     const res = await request(app).post("/api/workflows/nonexistent/run");
     expect(res.status).toBe(404);

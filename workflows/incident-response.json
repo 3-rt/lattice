@@ -1,33 +1,33 @@
 {
-  "name": "Bug Fix Pipeline",
-  "description": "Describe a bug, Claude Code fixes it, Codex reviews the fix, OpenClaw notifies the team.",
+  "name": "Incident Response",
+  "description": "Production incident comes in — one agent triages the stack trace, another writes the fix, a third reviews it for safety, and the team gets notified with a summary.",
   "definition": {
     "nodes": [
       {
-        "id": "describe",
+        "id": "triage",
         "type": "agent-task",
-        "label": "Describe Bug",
+        "label": "Triage Incident",
         "config": {
-          "agent": "auto",
-          "taskTemplate": "{{bugDescription}}"
+          "agent": "claude-code",
+          "taskTemplate": "Triage this production incident. Analyze the stack trace, identify the root cause, and classify severity:\n\n{{incidentReport}}"
         }
       },
       {
         "id": "fix",
         "type": "agent-task",
-        "label": "Fix Bug",
+        "label": "Write Fix",
         "config": {
           "agent": "claude-code",
-          "taskTemplate": "Fix this bug: {{bugReport}}"
+          "taskTemplate": "Write a fix for this incident based on the triage analysis:\n\n{{triageResult}}"
         }
       },
       {
         "id": "review",
         "type": "agent-task",
-        "label": "Review Fix",
+        "label": "Security Review",
         "config": {
           "agent": "codex",
-          "taskTemplate": "Review this fix for correctness and style:\n\n{{fixOutput}}"
+          "taskTemplate": "Review this fix for security vulnerabilities, correctness, and potential regressions:\n\n{{fixOutput}}"
         }
       },
       {
@@ -43,19 +43,19 @@
       {
         "id": "notify",
         "type": "agent-task",
-        "label": "Notify Team",
+        "label": "Summarize Resolution",
         "config": {
           "agent": "auto",
-          "taskTemplate": "Write a one-paragraph summary of this bug fix:\n\nBug: {{bugReport}}\nFix: {{fixOutput}}\nReview: {{reviewOutput}}"
+          "taskTemplate": "Write a short incident resolution summary (5 lines max) based on:\n\nTriage: {{triageResult}}\nFix: {{fixOutput}}\nReview: {{reviewOutput}}"
         }
       }
     ],
     "edges": [
       {
-        "source": "describe",
+        "source": "triage",
         "target": "fix",
         "dataMapping": {
-          "artifacts[0].parts[0].text": "bugReport"
+          "artifacts[0].parts[0].text": "triageResult"
         }
       },
       {
@@ -74,10 +74,10 @@
         "target": "notify"
       },
       {
-        "source": "describe",
+        "source": "triage",
         "target": "notify",
         "dataMapping": {
-          "artifacts[0].parts[0].text": "bugReport"
+          "artifacts[0].parts[0].text": "triageResult"
         }
       },
       {

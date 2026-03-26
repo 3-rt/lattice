@@ -9,6 +9,8 @@ import { createApp } from "./server.js";
 import { createWorkflowEngine } from "./workflow-engine.js";
 import { seedWorkflows } from "./seed-workflows.js";
 
+const DEMO_MODE = process.argv.includes("--demo");
+
 const configPath = path.resolve(process.cwd(), "lattice.config.json");
 const config = fs.existsSync(configPath)
   ? JSON.parse(fs.readFileSync(configPath, "utf-8"))
@@ -17,7 +19,19 @@ const config = fs.existsSync(configPath)
 const port = config.relay?.port ?? 3100;
 const host = config.relay?.host ?? "localhost";
 
-const db = createDatabase(path.resolve(process.cwd(), "lattice.db"));
+const dbPath = DEMO_MODE
+  ? path.resolve(process.cwd(), "lattice-demo.db")
+  : path.resolve(process.cwd(), "lattice.db");
+
+// Clean slate for demo mode
+if (DEMO_MODE) {
+  for (const suffix of ["", "-shm", "-wal"]) {
+    const f = dbPath + suffix;
+    if (fs.existsSync(f)) fs.unlinkSync(f);
+  }
+}
+
+const db = createDatabase(dbPath);
 const bus = createEventBus();
 const registry = createRegistry(db, bus);
 const routingConfig = config.routing ?? {};
@@ -28,7 +42,30 @@ const taskManager = createTaskManager(db, bus, registry, router);
 const workflowEngine = createWorkflowEngine(db, taskManager, bus);
 const app = createApp({ db, registry, taskManager, bus, workflowEngine });
 
-// Load enabled adapters from config
+// Load demo adapters (mock agents, no external dependencies)
+async function loadDemoAdapters() {
+  const { createDemoClaudeCodeAdapter, createDemoOpenClawAdapter, createDemoCodexAdapter } =
+    await import("./demo-adapters.js");
+
+  console.log("\n  Lattice  (demo mode)\n");
+  console.log("  Adapters:");
+
+  const claude = createDemoClaudeCodeAdapter();
+  registry.register(claude);
+  console.log("  \u2713 claude-code     ready (simulated)");
+
+  const openclaw = createDemoOpenClawAdapter();
+  registry.register(openclaw);
+  console.log("  \u2713 openclaw        ready (simulated)");
+
+  const codex = createDemoCodexAdapter();
+  registry.register(codex);
+  console.log("  \u2713 codex           ready (simulated)");
+
+  console.log();
+}
+
+// Load real adapters from config
 async function loadAdapters() {
   const adapters = config.adapters ?? {};
 
@@ -127,7 +164,7 @@ async function loadAdapters() {
   console.log();
 }
 
-loadAdapters().then(() => {
+(DEMO_MODE ? loadDemoAdapters() : loadAdapters()).then(() => {
   const workflowDir = path.resolve(
     process.cwd(),
     config.workflows?.seedDir ?? "workflows"

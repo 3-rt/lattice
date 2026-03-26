@@ -19,13 +19,28 @@ Dashboard (React + Vite)  ◄──── SSE ────►  Relay (Express + 
 - **CLI** — Thin wrapper around the relay REST API
 - **Adapters** — In-process TypeScript modules implementing the `LatticeAdapter` interface. Claude Code runs via CLI subprocess, OpenClaw connects to its gateway over WebSocket JSON-RPC, Codex wraps its CLI.
 
+## Demo
+
+Run the self-contained demo — no external agents or API keys required:
+
+```bash
+npm install
+npm run demo
+```
+
+This boots the relay with 3 simulated agents, pre-seeds tasks, launches the dashboard, and prints a walkthrough guide. Open http://localhost:3200 and follow the prompts — dispatch tasks on the Live Flow page, run the Incident Response workflow, explore routing stats.
+
+See [`docs/demo-script.md`](docs/demo-script.md) for the full walkthrough with talking points.
+
+For an automated terminal walkthrough: `npm run demo:auto`
+
 ## Quick Start
 
 ```bash
 # Install dependencies
 npm install
 
-# Run tests (195 passing)
+# Run tests (218 passing)
 npx vitest run
 
 # Set the OpenClaw gateway token (required for OpenClaw adapter)

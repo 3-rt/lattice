@@ -18,7 +18,7 @@ export interface AgentInfo {
 export interface TaskInfo {
   id: string;
   status: string;
-  artifacts: Array<{ name: string; parts: Array<{ type: string; text?: string }> }>;
+  artifacts: Array<{ name: string; parts: Array<{ type: string; text?: string }>; detail?: string }>;
   history: Array<{ role: string; parts: Array<{ type: string; text?: string }> }>;
   metadata: {
     createdAt: string;

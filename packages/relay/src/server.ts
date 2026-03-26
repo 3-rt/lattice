@@ -7,6 +7,38 @@ import type { LatticeRegistry } from "./registry.js";
 import type { LatticeTaskManager } from "./task-manager.js";
 import type { LatticeEventBus } from "./event-bus.js";
 import type { LatticeWorkflowEngine } from "./workflow-engine.js";
+import type { WorkflowDefinition } from "./workflow-types.js";
+
+const VALID_NODE_TYPES = new Set(["agent-task", "condition"]);
+
+function validateWorkflowDefinition(def: unknown): string | null {
+  if (!def || typeof def !== "object" || Array.isArray(def)) {
+    return "definition must be an object";
+  }
+  const d = def as Record<string, unknown>;
+  if (!Array.isArray(d.nodes)) return "definition.nodes must be an array";
+  if (!Array.isArray(d.edges)) return "definition.edges must be an array";
+
+  const nodeIds = new Set<string>();
+  for (let i = 0; i < d.nodes.length; i++) {
+    const node = d.nodes[i] as Record<string, unknown>;
+    if (!node.id || typeof node.id !== "string") return `nodes[${i}].id must be a non-empty string`;
+    if (!VALID_NODE_TYPES.has(node.type as string)) return `nodes[${i}].type must be "agent-task" or "condition"`;
+    if (!node.label || typeof node.label !== "string") return `nodes[${i}].label must be a non-empty string`;
+    if (!node.config || typeof node.config !== "object" || Array.isArray(node.config)) return `nodes[${i}].config must be an object`;
+    nodeIds.add(node.id as string);
+  }
+
+  for (let i = 0; i < d.edges.length; i++) {
+    const edge = d.edges[i] as Record<string, unknown>;
+    if (!edge.source || typeof edge.source !== "string") return `edges[${i}].source must be a non-empty string`;
+    if (!edge.target || typeof edge.target !== "string") return `edges[${i}].target must be a non-empty string`;
+    if (!nodeIds.has(edge.source as string)) return `edges[${i}].source references unknown node "${edge.source}"`;
+    if (!nodeIds.has(edge.target as string)) return `edges[${i}].target references unknown node "${edge.target}"`;
+  }
+
+  return null;
+}
 
 interface ServerDeps {
   db: LatticeDB;
@@ -99,9 +131,10 @@ export function createApp({ db, registry, taskManager, bus, workflowEngine }: Se
   app.post("/api/workflows", (req, res) => {
     const { name, definition } = req.body;
     if (!name) { res.status(400).json({ error: "name is required" }); return; }
-    if (!definition) { res.status(400).json({ error: "definition is required" }); return; }
+    const validationError = validateWorkflowDefinition(definition);
+    if (validationError) { res.status(400).json({ error: validationError }); return; }
     const id = uuidv4();
-    db.insertWorkflow(id, name, definition);
+    db.insertWorkflow(id, name, definition as WorkflowDefinition);
     res.status(201).json({ id, name, definition });
   });
 

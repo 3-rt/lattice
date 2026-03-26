@@ -17,8 +17,8 @@
         "type": "agent-task",
         "label": "Send Summary",
         "config": {
-          "agent": "openclaw",
-          "taskTemplate": "Code review completed. Summary of findings:\n\n{{reviewFindings}}"
+          "agent": "auto",
+          "taskTemplate": "Summarize these code review findings in 3 bullet points:\n\n{{reviewFindings}}"
         }
       }
     ],
