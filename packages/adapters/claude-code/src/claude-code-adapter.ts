@@ -183,7 +183,9 @@ export function createClaudeCodeAdapter(): LatticeAdapter {
       try {
         const res = await runClaude(prompt);
         if (res.is_error || res.error) {
-          throw new Error(res.error ?? "Claude returned an error");
+          throw new Error(
+            res.error ?? res.result ?? "Claude returned an error",
+          );
         }
         resultText = res.result ?? "";
       } catch (err) {
@@ -260,24 +262,34 @@ export function createClaudeCodeAdapter(): LatticeAdapter {
     },
 
     async healthCheck(): Promise<HealthCheckResult> {
-      return new Promise((resolve) => {
+      // First check the binary exists
+      const binExists = await new Promise<boolean>((resolve) => {
         const child = spawn(claudeBin(), ["--version"], {
           stdio: ["ignore", "pipe", "ignore"],
         });
-        child.on("error", (err) => {
-          const reason = /ENOENT/.test(err.message)
-            ? "Claude CLI not found. Install it with: npm install -g @anthropic-ai/claude-code"
-            : "Claude CLI exited with an error. Run 'claude --version' to check your setup.";
-          resolve({ ok: false, reason });
-        });
-        child.on("close", (code) => {
-          if (code === 0) {
-            resolve({ ok: true });
-          } else {
-            resolve({ ok: false, reason: "Claude CLI exited with an error. Run 'claude --version' to check your setup." });
-          }
-        });
+        child.on("error", () => resolve(false));
+        child.on("close", (code) => resolve(code === 0));
       });
+
+      if (!binExists) {
+        return { ok: false, reason: "Claude CLI not found. Install it with: npm install -g @anthropic-ai/claude-code" };
+      }
+
+      // Verify auth by running a minimal prompt
+      try {
+        const res = await runClaude("say ok");
+        if (res.is_error) {
+          const msg = res.result ?? res.error ?? "unknown error";
+          if (/not logged in|login|authenticate/i.test(msg)) {
+            return { ok: false, reason: "Claude CLI is not logged in. Run 'claude' and complete the login flow." };
+          }
+          return { ok: false, reason: `Claude CLI error: ${msg}` };
+        }
+        return { ok: true };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { ok: false, reason: `Claude CLI error: ${msg}` };
+      }
     },
   };
 }

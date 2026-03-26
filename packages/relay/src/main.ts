@@ -19,9 +19,12 @@ const config = fs.existsSync(configPath)
 const port = config.relay?.port ?? 3100;
 const host = config.relay?.host ?? "localhost";
 
+const dataDir = path.resolve(process.cwd(), "data");
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
 const dbPath = DEMO_MODE
-  ? path.resolve(process.cwd(), "lattice-demo.db")
-  : path.resolve(process.cwd(), "lattice.db");
+  ? path.resolve(dataDir, "lattice-demo.db")
+  : path.resolve(dataDir, "lattice.db");
 
 // Clean slate for demo mode
 if (DEMO_MODE) {

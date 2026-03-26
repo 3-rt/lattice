@@ -31,6 +31,10 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; template: string }> = [
     template: "Connection refused. The agent's backend isn't running.",
   },
   {
+    pattern: /not logged in/i,
+    template: "Claude CLI is not logged in. Run 'claude' and complete the login flow.",
+  },
+  {
     pattern: /claude exited with code/i,
     template: "Claude encountered an error. Check that the Claude CLI is authenticated and working.",
   },

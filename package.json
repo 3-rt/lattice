@@ -15,7 +15,7 @@
     "dev:dashboard": "npm run dev --workspace=packages/dashboard",
     "dev:all": "npm run dev:relay & npm run dev:dashboard",
     "dev": "npm run dev:relay",
-    "demo": "npm run dev:all"
+    "demo": "bash scripts/demo.sh"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
