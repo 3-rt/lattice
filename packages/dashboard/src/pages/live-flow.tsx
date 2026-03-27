@@ -8,6 +8,7 @@ import { fetchAgents, fetchTasks } from "../lib/api.ts";
 
 export function LiveFlow() {
   const setAgents = useLatticeStore((s) => s.setAgents);
+  const setTasks = useLatticeStore((s) => s.setTasks);
 
   // Load initial data
   useEffect(() => {
@@ -15,9 +16,9 @@ export function LiveFlow() {
       .then((agents) => setAgents(agents))
       .catch((err) => console.error("Failed to fetch agents:", err));
     fetchTasks()
-      .then(() => {}) // tasks are added via SSE
+      .then((tasks) => setTasks(tasks))
       .catch((err) => console.error("Failed to fetch tasks:", err));
-  }, [setAgents]);
+  }, [setAgents, setTasks]);
 
   // Activate flow event processing
   useFlowEvents();

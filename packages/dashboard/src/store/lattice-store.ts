@@ -34,14 +34,22 @@ export const useLatticeStore = create<LatticeState>((set, get) => ({
     })),
 
   addTask: (task) =>
-    set((state) => ({
-      tasks: [task, ...state.tasks],
-    })),
+    set((state) => {
+      if (state.tasks.some((t) => t.id === task.id)) return state;
+      return { tasks: [task, ...state.tasks] };
+    }),
 
   updateTask: (taskId, update) =>
-    set((state) => ({
-      tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, ...update } : t)),
-    })),
+    set((state) => {
+      const idx = state.tasks.findIndex((t) => t.id === taskId);
+      if (idx === -1) return state;
+      const existing = state.tasks[idx];
+      // Skip no-op updates (e.g. replayed SSE events)
+      if (update.status && existing.status === update.status) return state;
+      const updated = [...state.tasks];
+      updated[idx] = { ...existing, ...update };
+      return { tasks: updated };
+    }),
 
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
 

@@ -76,6 +76,10 @@ interface ClaudeJsonResult {
 /**
  * Run `claude --print --output-format json` and return the parsed result.
  */
+function claudeModel(): string {
+  return process.env.CLAUDE_MODEL ?? "sonnet";
+}
+
 function runClaude(prompt: string): Promise<ClaudeJsonResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(
@@ -85,9 +89,10 @@ function runClaude(prompt: string): Promise<ClaudeJsonResult> {
         "--output-format",
         "json",
         "--no-session-persistence",
+        "--model",
+        claudeModel(),
         "--max-turns",
         "10",
-        "--bare",
         prompt,
       ],
       { stdio: ["ignore", "pipe", "pipe"] },
@@ -133,9 +138,10 @@ function spawnClaudeStream(prompt: string): {
       "--output-format",
       "stream-json",
       "--no-session-persistence",
+      "--model",
+      claudeModel(),
       "--max-turns",
       "10",
-      "--bare",
       prompt,
     ],
     { stdio: ["ignore", "pipe", "pipe"] },

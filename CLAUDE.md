@@ -122,6 +122,20 @@ interface LatticeAdapter {
 
 All types exported from `@lattice/adapter-base`.
 
+## SSE Behavior
+
+- Fresh SSE connections do NOT replay buffered events — initial state comes from REST API
+- Only reconnects (with `lastEventId` query param or `Last-Event-ID` header) get missed events replayed
+- The dashboard `useFlowEvents` hook treats the first batch of tasks as baseline (no log entries for historical tasks)
+- The Lattice store deduplicates `addTask` by ID and skips no-op `updateTask` calls
+
+## Claude Code Adapter
+
+- Spawns `claude` CLI via child process with `--print --output-format json --no-session-persistence --model <model> --max-turns 10`
+- Do NOT use `--bare` flag — it disables OAuth/keychain auth and only accepts `ANTHROPIC_API_KEY`
+- Model defaults to `sonnet`; override via `CLAUDE_MODEL` env var
+- The adapter dist must be rebuilt (`npm run build --workspace=packages/adapters/claude-code`) after source changes — the relay imports from `dist/`, not `src/`
+
 ## Config
 
 `lattice.config.json` at project root. Relay port 3100, dashboard port 3200. CORS enabled for localhost origins. No auth in v1.
@@ -130,7 +144,7 @@ All types exported from `@lattice/adapter-base`.
 
 ```bash
 npm install                          # Install all workspace deps
-npx vitest run                       # Run all tests (195 passing)
+npx vitest run                       # Run all tests (220 passing)
 npx tsx packages/relay/src/main.ts   # Start relay server on :3100
 ```
 

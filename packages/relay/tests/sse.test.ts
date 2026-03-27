@@ -63,11 +63,43 @@ describe("SSE Handler", () => {
     expect(data).toContain('"agentName":"test"');
   });
 
-  it("should replay buffered events on connect", async () => {
+  it("should not replay buffered events on fresh connect", async () => {
     bus.emit({ type: "agent:status", agentName: "pre-1", status: "online" });
     bus.emit({ type: "agent:status", agentName: "pre-2", status: "online" });
 
     const res = await fetch(`${baseUrl}/api/events`);
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+
+    // Emit a new event after connecting so we have something to read
+    await new Promise((r) => setTimeout(r, 50));
+    bus.emit({ type: "agent:status", agentName: "post-connect", status: "online" });
+
+    let data = "";
+    const timeout = setTimeout(() => reader.cancel(), 2000);
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        data += decoder.decode(value);
+        if (data.includes("post-connect")) break;
+      }
+    } finally {
+      clearTimeout(timeout);
+      reader.cancel();
+    }
+
+    expect(data).toContain("post-connect");
+    expect(data).not.toContain("pre-1");
+    expect(data).not.toContain("pre-2");
+  });
+
+  it("should replay missed events on reconnect with lastEventId", async () => {
+    bus.emit({ type: "agent:status", agentName: "pre-1", status: "online" });
+    bus.emit({ type: "agent:status", agentName: "pre-2", status: "online" });
+
+    // Reconnect with lastEventId=1, should only get event 2
+    const res = await fetch(`${baseUrl}/api/events?lastEventId=1`);
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
 
@@ -85,7 +117,7 @@ describe("SSE Handler", () => {
       reader.cancel();
     }
 
-    expect(data).toContain("pre-1");
+    expect(data).not.toContain("pre-1");
     expect(data).toContain("pre-2");
   });
 });

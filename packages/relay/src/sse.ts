@@ -10,14 +10,17 @@ export function createSSEHandler(eventBus: LatticeEventBus) {
       Connection: "keep-alive",
     });
 
-    // Replay buffered events
-    const lastEventId = req.headers["last-event-id"];
-    const buffered = lastEventId
-      ? eventBus.getBufferedEventsAfter(parseInt(lastEventId as string, 10))
-      : eventBus.getBufferedEvents();
-
-    for (const entry of buffered) {
-      writeSSE(res, entry.id, entry.event);
+    // Only replay buffered events on reconnect (lastEventId present).
+    // Fresh connections get initial state from the REST API instead.
+    const lastEventId =
+      req.headers["last-event-id"] ?? req.query.lastEventId;
+    if (lastEventId) {
+      const buffered = eventBus.getBufferedEventsAfter(
+        parseInt(lastEventId as string, 10),
+      );
+      for (const entry of buffered) {
+        writeSSE(res, entry.id, entry.event);
+      }
     }
 
     // Flush headers and any buffered data immediately so the client sees them

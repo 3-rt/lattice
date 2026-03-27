@@ -17,7 +17,7 @@ export function useFlowEvents() {
   const addLogEntry = useFlowStore((s) => s.addLogEntry);
   const clearStaleAnimations = useFlowStore((s) => s.clearStaleAnimations);
 
-  const prevTasksRef = useRef<typeof tasks>([]);
+  const prevTasksRef = useRef<typeof tasks | null>(null);
   const logIdCounter = useRef(0);
 
   // Garbage-collect stale edges every 5 seconds
@@ -29,6 +29,13 @@ export function useFlowEvents() {
   // Diff tasks to detect state transitions
   useEffect(() => {
     const prev = prevTasksRef.current;
+
+    // First render: treat current tasks as baseline (don't log historical tasks)
+    if (prev === null) {
+      prevTasksRef.current = tasks;
+      return;
+    }
+
     const prevMap = new Map(prev.map((t) => [t.id, t]));
 
     for (const task of tasks) {
