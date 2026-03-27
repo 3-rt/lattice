@@ -436,7 +436,8 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
         const unsubscribe = gw.onEvent((event) => {
           if (event.event !== "chat") return;
           const payload = event.payload;
-          if (!payload || payload.sessionKey !== sessionKey) return;
+          const payloadKey = typeof payload?.sessionKey === "string" ? payload.sessionKey : "";
+          if (!payload || (!payloadKey.endsWith(sessionKey) && payloadKey !== sessionKey)) return;
 
           if (payload.state === "delta") {
             const text = extractText(payload.message);

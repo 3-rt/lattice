@@ -40,11 +40,12 @@ For an automated terminal walkthrough: `npm run demo:auto`
 # Install dependencies
 npm install
 
-# Run tests (218 passing)
+# Run tests
 npx vitest run
 
-# Set the OpenClaw gateway token (required for OpenClaw adapter)
-export OPENCLAW_GATEWAY_TOKEN="your-token"
+# Set env vars for adapters you want to use (see docs/setup-openclaw.md for OpenClaw)
+export OPENCLAW_GATEWAY_TOKEN="your-gateway-token"
+export OPENCLAW_DEVICE_TOKEN="your-device-token"
 
 # Start the relay server (port 3100)
 npm start
@@ -74,9 +75,11 @@ The relay and dashboard run without any external agents. To actually execute tas
 
 | Adapter | Requirement |
 |---------|-------------|
-| Claude Code | `claude` CLI on PATH, authenticated |
-| OpenClaw | `OPENCLAW_GATEWAY_TOKEN` env var, gateway reachable via WebSocket (default `ws://localhost:18789/ws`) |
+| Claude Code | `claude` CLI on PATH, authenticated via `claude auth` |
+| OpenClaw | `OPENCLAW_GATEWAY_TOKEN` + `OPENCLAW_DEVICE_TOKEN` env vars, device identity file, gateway reachable via WebSocket |
 | Codex | `codex` CLI on PATH |
+
+OpenClaw requires the most setup — see [`docs/setup-openclaw.md`](docs/setup-openclaw.md) for the full guide.
 
 Disable any adapter in `lattice.config.json` by setting `"enabled": false`.
 
