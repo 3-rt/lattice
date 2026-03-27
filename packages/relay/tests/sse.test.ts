@@ -59,7 +59,7 @@ describe("SSE Handler", () => {
       reader.cancel();
     }
 
-    expect(data).toContain("event: agent:status");
+    expect(data).toContain('"type":"agent:status"');
     expect(data).toContain('"agentName":"test"');
   });
 

@@ -51,6 +51,7 @@ function WorkflowCanvas({
   onEdgesChange,
   onConnect,
   onNodeClick,
+  onEdgeClick,
   onPaneClick,
 }: {
   rfNodes: Node[];
@@ -59,6 +60,7 @@ function WorkflowCanvas({
   onEdgesChange: OnEdgesChange;
   onConnect: (connection: Connection) => void;
   onNodeClick: (_: React.MouseEvent, node: Node) => void;
+  onEdgeClick: (_: React.MouseEvent, edge: Edge) => void;
   onPaneClick: () => void;
 }) {
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -99,7 +101,9 @@ function WorkflowCanvas({
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       onNodeClick={onNodeClick}
+      onEdgeClick={onEdgeClick}
       onPaneClick={onPaneClick}
+      deleteKeyCode={["Backspace", "Delete"]}
       onInit={setRfInstance}
       onDragOver={(event) => {
         event.preventDefault();
@@ -108,7 +112,7 @@ function WorkflowCanvas({
       onDrop={onDrop}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
-      connectionMode={ConnectionMode.Loose}
+      connectionMode={ConnectionMode.Strict}
       fitView
       fitViewOptions={{ padding: 0.3 }}
       proOptions={{ hideAttribution: true }}
@@ -139,6 +143,7 @@ export function WorkflowEditor() {
   const addWorkflow = useWorkflowStore((state) => state.addWorkflow);
   const clearEditor = useWorkflowStore((state) => state.clearEditor);
   const [saving, setSaving] = useState(false);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   const rfNodesRef = useRef<Node[]>([]);
   const editorNodesRef = useRef<EditorNode[]>([]);
@@ -177,9 +182,10 @@ export function WorkflowEditor() {
         source: edge.source,
         target: edge.target,
         type: "workflow",
+        selected: edge.id === selectedEdgeId,
         data: { dataMapping: edge.dataMapping },
       })),
-    [editorEdges]
+    [editorEdges, selectedEdgeId]
   );
 
   // Keep refs always current so callbacks never capture stale values
@@ -218,16 +224,26 @@ export function WorkflowEditor() {
 
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
-      const changedEdges = applyEdgeChanges(changes, rfEdgesRef.current);
-      setEditorEdges(
-        changedEdges.map((edge) => ({
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          dataMapping: (edge.data as { dataMapping?: Record<string, string> } | undefined)
-            ?.dataMapping,
-        }))
-      );
+      for (const c of changes) {
+        if (c.type === "select") {
+          setSelectedEdgeId(c.selected ? c.id : null);
+        }
+      }
+
+      const removals = changes.filter((c) => c.type === "remove");
+      if (removals.length > 0) {
+        const changedEdges = applyEdgeChanges(removals, rfEdgesRef.current);
+        setEditorEdges(
+          changedEdges.map((edge) => ({
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            dataMapping: (edge.data as { dataMapping?: Record<string, string> } | undefined)
+              ?.dataMapping,
+          }))
+        );
+        setSelectedEdgeId(null);
+      }
     },
     [setEditorEdges]
   );
@@ -326,8 +342,9 @@ export function WorkflowEditor() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-          onPaneClick={() => setSelectedNodeId(null)}
+          onNodeClick={(_, node) => { setSelectedNodeId(node.id); setSelectedEdgeId(null); }}
+          onEdgeClick={() => setSelectedNodeId(null)}
+          onPaneClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
         />
       </div>
 

@@ -50,12 +50,12 @@ export const AgentTaskNode = memo(function AgentTaskNode({
       <Handle
         type="target"
         position={Position.Top}
-        className="!h-2.5 !w-2.5 !border-gray-500 !bg-gray-600"
+        className="!h-3 !w-3 !border-gray-500 !bg-gray-600 hover:!bg-lattice-400"
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!h-2.5 !w-2.5 !border-gray-500 !bg-gray-600"
+        className="!h-3 !w-3 !border-gray-500 !bg-gray-600 hover:!bg-lattice-400"
       />
     </div>
   );

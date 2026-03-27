@@ -19,6 +19,7 @@ export const WorkflowEdge = memo(function WorkflowEdge({
   sourcePosition,
   targetPosition,
   data,
+  selected,
 }: EdgeProps) {
   const edgeData = data as WorkflowEdgeData | undefined;
   const [edgePath, labelX, labelY] = getBezierPath({
@@ -39,7 +40,10 @@ export const WorkflowEdge = memo(function WorkflowEdge({
       <BaseEdge
         id={id}
         path={edgePath}
-        style={{ stroke: "rgba(107, 114, 128, 0.5)", strokeWidth: 2 }}
+        style={{
+          stroke: selected ? "rgba(139, 92, 246, 0.8)" : "rgba(107, 114, 128, 0.5)",
+          strokeWidth: selected ? 3 : 2,
+        }}
       />
       {mappingKeys.length > 0 && (
         <EdgeLabelRenderer>

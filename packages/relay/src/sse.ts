@@ -42,6 +42,5 @@ export function createSSEHandler(eventBus: LatticeEventBus) {
 
 function writeSSE(res: Response, id: number, event: SSEEventType) {
   res.write(`id: ${id}\n`);
-  res.write(`event: ${event.type}\n`);
   res.write(`data: ${JSON.stringify(event)}\n\n`);
 }
