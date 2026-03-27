@@ -11,7 +11,9 @@
     "openclaw": {
       "enabled": true,
       "gatewayUrl": "http://100.98.106.46:18789",
-      "gatewayToken": "${OPENCLAW_GATEWAY_TOKEN}"
+      "gatewayToken": "${OPENCLAW_GATEWAY_TOKEN}",
+      "deviceToken": "${OPENCLAW_DEVICE_TOKEN}",
+      "deviceIdentityPath": ".openclaw-device.json"
     },
     "codex": {
       "enabled": true,

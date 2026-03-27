@@ -14,8 +14,11 @@ export function PropertiesPanel() {
 
   if (!node) {
     return (
-      <div className="flex h-full items-center justify-center p-4 text-xs text-gray-600">
-        Select a node to edit its properties
+      <div className="flex h-full flex-col items-center justify-center px-5 text-center">
+        <p className="section-label">Inspector idle</p>
+        <p className="mt-3 max-w-[15rem] text-sm leading-6 text-[var(--text-muted)]">
+          Select a node to edit its logic, labels, and execution details.
+        </p>
       </div>
     );
   }
@@ -33,20 +36,23 @@ export function PropertiesPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
-        <h3 className="text-xs font-semibold text-gray-300">Properties</h3>
+      <div className="flex items-center justify-between border-b border-white/6 px-4 py-3">
+        <div>
+          <p className="section-label">Inspector</p>
+          <h3 className="mt-1 text-sm font-semibold text-[var(--text-strong)]">Properties</h3>
+        </div>
         <button
           type="button"
           onClick={() => setSelectedNodeId(null)}
-          className="text-gray-500 hover:text-gray-300"
+          className="text-[var(--text-soft)] hover:text-[var(--text-main)]"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4">
         <div>
-          <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-gray-500">
+          <label className="section-label mb-2 block">
             Label
           </label>
           <input
@@ -55,15 +61,15 @@ export function PropertiesPanel() {
             onChange={(event) =>
               updateEditorNode(selectedNode.id, { label: event.target.value })
             }
-            className="w-full rounded-md border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-xs text-gray-100 focus:border-lattice-600 focus:outline-none focus:ring-1 focus:ring-lattice-600"
+            className="ui-input"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-gray-500">
+          <label className="section-label mb-2 block">
             Type
           </label>
-          <span className="inline-block rounded bg-gray-800 px-2 py-1 text-[10px] text-gray-400">
+          <span className="inline-block rounded-full border border-white/8 bg-white/5 px-2.5 py-1 text-[10px] text-[var(--text-muted)]">
             {selectedNode.type}
           </span>
         </div>
@@ -71,13 +77,13 @@ export function PropertiesPanel() {
         {selectedNode.type === "agent-task" && (
           <>
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-gray-500">
+              <label className="section-label mb-2 block">
                 Agent
               </label>
               <select
                 value={(selectedNode.config.agent as string) ?? "auto"}
                 onChange={(event) => handleConfigChange("agent", event.target.value)}
-                className="w-full rounded-md border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-xs text-gray-300 focus:border-lattice-600 focus:outline-none"
+                className="ui-select"
               >
                 <option value="auto">Auto (learned routing)</option>
                 {agents
@@ -90,7 +96,7 @@ export function PropertiesPanel() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-gray-500">
+              <label className="section-label mb-2 block">
                 Task Template
               </label>
               <textarea
@@ -100,7 +106,7 @@ export function PropertiesPanel() {
                 }
                 rows={3}
                 placeholder="Use {{variable}} for placeholders..."
-                className="w-full resize-none rounded-md border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-xs text-gray-100 placeholder:text-gray-600 focus:border-lattice-600 focus:outline-none focus:ring-1 focus:ring-lattice-600"
+                className="ui-input min-h-28 resize-none"
               />
             </div>
           </>
@@ -109,7 +115,7 @@ export function PropertiesPanel() {
         {selectedNode.type === "condition" && (
           <>
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-gray-500">
+              <label className="section-label mb-2 block">
                 Field (dot notation)
               </label>
               <input
@@ -117,11 +123,11 @@ export function PropertiesPanel() {
                 value={(selectedNode.config.field as string) ?? ""}
                 onChange={(event) => handleConfigChange("field", event.target.value)}
                 placeholder="e.g. nodeId.status"
-                className="w-full rounded-md border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-xs text-gray-100 placeholder:text-gray-600 focus:border-lattice-600 focus:outline-none focus:ring-1 focus:ring-lattice-600"
+                className="ui-input"
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-gray-500">
+              <label className="section-label mb-2 block">
                 Operator
               </label>
               <select
@@ -129,7 +135,7 @@ export function PropertiesPanel() {
                 onChange={(event) =>
                   handleConfigChange("operator", event.target.value)
                 }
-                className="w-full rounded-md border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-xs text-gray-300 focus:border-lattice-600 focus:outline-none"
+                className="ui-select"
               >
                 <option value="equals">equals</option>
                 <option value="not_equals">not equals</option>
@@ -140,7 +146,7 @@ export function PropertiesPanel() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-gray-500">
+              <label className="section-label mb-2 block">
                 Value
               </label>
               <input
@@ -148,18 +154,18 @@ export function PropertiesPanel() {
                 value={(selectedNode.config.value as string) ?? ""}
                 onChange={(event) => handleConfigChange("value", event.target.value)}
                 placeholder="Compare value"
-                className="w-full rounded-md border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-xs text-gray-100 placeholder:text-gray-600 focus:border-lattice-600 focus:outline-none focus:ring-1 focus:ring-lattice-600"
+                className="ui-input"
               />
             </div>
           </>
         )}
       </div>
 
-      <div className="border-t border-gray-800 p-3">
+      <div className="border-t border-white/6 p-4">
         <button
           type="button"
           onClick={() => removeEditorNode(selectedNode.id)}
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-red-900/50 bg-red-950/30 px-3 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-950/60"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300/15 bg-rose-300/10 px-3 py-2 text-xs text-rose-200/90 transition-colors hover:bg-rose-300/15"
         >
           <Trash2 className="h-3.5 w-3.5" />
           Delete Node

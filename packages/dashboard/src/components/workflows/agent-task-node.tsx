@@ -20,30 +20,30 @@ export const AgentTaskNode = memo(function AgentTaskNode({
   return (
     <div
       className={clsx(
-        "w-52 rounded-lg border bg-gray-900 p-3 transition-all duration-300",
-        !status && "border-gray-700",
-        status === "pending" && "border-gray-700 opacity-60",
+        "workflow-node-shell w-56 rounded-[1rem] border bg-slate-950/95 p-3.5 transition-all duration-300",
+        !status && "border-white/10",
+        status === "pending" && "border-white/10 opacity-70",
         status === "working" &&
-          "border-lattice-500 shadow-[0_0_16px_4px_rgba(76,110,245,0.4)]",
+          "border-[var(--accent-primary)] shadow-[0_0_16px_4px_rgba(96,165,250,0.28)]",
         status === "completed" &&
           "border-emerald-400 shadow-[0_0_12px_4px_rgba(52,211,153,0.3)]",
         status === "failed" &&
-          "border-red-400 shadow-[0_0_12px_4px_rgba(248,113,113,0.3)]",
-        status === "skipped" && "border-gray-700 opacity-40",
-        nodeData.selected && "ring-2 ring-lattice-400"
+          "border-rose-400 shadow-[0_0_12px_4px_rgba(248,113,113,0.3)]",
+        status === "skipped" && "border-white/10 opacity-40",
+        nodeData.selected && "ring-2 ring-[var(--accent-primary)]"
       )}
     >
       <div className="flex items-center gap-2">
-        <Bot className="h-4 w-4 shrink-0 text-lattice-400" />
-        <span className="truncate text-xs font-semibold text-gray-100">
+        <Bot className="h-4 w-4 shrink-0 text-[var(--accent-primary-strong)]" />
+        <span className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-strong)]">
           {nodeData.label}
         </span>
       </div>
 
-      <p className="mt-1 truncate text-[10px] text-gray-500">
+      <p className="mt-2 truncate text-[10px] text-[var(--text-muted)]">
         Agent: {nodeData.agent || "auto"}
       </p>
-      <p className="mt-0.5 truncate text-[10px] text-gray-600">
+      <p className="mt-1 truncate text-[10px] text-[var(--text-soft)]">
         {nodeData.taskTemplate || "No template"}
       </p>
 

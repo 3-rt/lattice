@@ -49,8 +49,8 @@ export function WorkflowList() {
   if (workflows.length === 0) {
     return (
       <div className="flex h-48 flex-col items-center justify-center text-center">
-        <p className="text-sm text-gray-500">No workflows saved yet.</p>
-        <p className="mt-1 text-xs text-gray-600">Create one in the Editor tab.</p>
+        <p className="text-sm text-[var(--text-muted)]">No workflows saved yet.</p>
+        <p className="mt-1 text-xs text-[var(--text-soft)]">Create one in the Editor tab.</p>
       </div>
     );
   }
@@ -62,14 +62,14 @@ export function WorkflowList() {
           key={workflow.id}
           onClick={() => void handleSelect(workflow.id)}
           className={clsx(
-            "cursor-pointer rounded-lg border bg-gray-900/80 p-3 transition-colors",
+            "cursor-pointer rounded-2xl border bg-white/[0.03] p-3.5 transition-colors",
             selectedWorkflowId === workflow.id
-              ? "border-lattice-600 bg-gray-900"
-              : "border-gray-800 hover:border-gray-700"
+              ? "border-sky-300/25 bg-white/[0.06]"
+              : "border-white/6 hover:border-white/12"
           )}
         >
           <div className="flex items-center justify-between gap-2">
-            <h4 className="text-sm font-medium text-gray-100">{workflow.name}</h4>
+            <h4 className="text-sm font-medium text-[var(--text-strong)]">{workflow.name}</h4>
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -78,7 +78,7 @@ export function WorkflowList() {
                   handleEdit(workflow.id);
                 }}
                 title="Edit workflow"
-                className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+                className="rounded p-1 text-[var(--text-soft)] transition-colors hover:bg-white/8 hover:text-[var(--text-main)]"
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
@@ -90,15 +90,15 @@ export function WorkflowList() {
                 }}
                 disabled={activeRunStatus === "working"}
                 title="Run workflow"
-                className="rounded p-1 text-emerald-500 transition-colors hover:bg-gray-800 hover:text-emerald-400 disabled:opacity-40"
+                className="rounded p-1 text-emerald-300 transition-colors hover:bg-white/8 hover:text-emerald-200 disabled:opacity-40"
               >
                 <Play className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
-          <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-500">
+          <div className="mt-1 flex items-center gap-2 text-[10px] text-[var(--text-soft)]">
             <span>{workflow.definition.nodes.length} nodes</span>
-            <span className="text-gray-700">|</span>
+            <span className="text-white/12">|</span>
             <span>{workflow.definition.edges.length} edges</span>
           </div>
         </div>

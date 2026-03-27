@@ -297,12 +297,12 @@ export function WorkflowEditor() {
   }
 
   return (
-    <div className="flex h-full">
-      <div className="w-48 shrink-0 space-y-4 overflow-y-auto border-r border-gray-800 p-3">
+    <div className="surface-panel flex h-full overflow-hidden">
+      <div className="w-56 shrink-0 space-y-4 overflow-y-auto border-r border-white/6 p-4">
         <NodePalette />
 
-        <div className="border-t border-gray-800 pt-3">
-          <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-gray-500">
+        <div className="border-t border-white/6 pt-4">
+          <label className="section-label mb-2 block">
             Workflow Name
           </label>
           <input
@@ -310,7 +310,7 @@ export function WorkflowEditor() {
             value={workflowName}
             onChange={(event) => setWorkflowName(event.target.value)}
             placeholder="My Workflow"
-            className="w-full rounded-md border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-xs text-gray-100 placeholder:text-gray-600 focus:border-lattice-600 focus:outline-none focus:ring-1 focus:ring-lattice-600"
+            className="ui-input"
           />
         </div>
 
@@ -319,7 +319,7 @@ export function WorkflowEditor() {
             type="button"
             onClick={() => void handleSave()}
             disabled={saving || !workflowName.trim() || editorNodes.length === 0}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-lattice-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-lattice-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="ui-button-primary flex w-full justify-center"
           >
             <Save className="h-3.5 w-3.5" />
             {saving ? "Saving..." : "Save Workflow"}
@@ -327,7 +327,7 @@ export function WorkflowEditor() {
           <button
             type="button"
             onClick={clearEditor}
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-gray-700 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-800"
+            className="ui-button-secondary flex w-full justify-center"
           >
             <FilePlus className="h-3.5 w-3.5" />
             New Workflow
@@ -335,7 +335,7 @@ export function WorkflowEditor() {
         </div>
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 bg-slate-950/60">
         <WorkflowCanvas
           rfNodes={rfNodes}
           rfEdges={rfEdges}
@@ -348,7 +348,7 @@ export function WorkflowEditor() {
         />
       </div>
 
-      <div className="w-56 shrink-0 overflow-y-auto border-l border-gray-800">
+      <div className="w-64 shrink-0 overflow-y-auto border-l border-white/6 bg-slate-950/65">
         <PropertiesPanel />
       </div>
     </div>

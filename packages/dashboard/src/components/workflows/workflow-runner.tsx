@@ -92,9 +92,9 @@ export function WorkflowRunner() {
   }, [stepStatuses, workflow]);
 
   return (
-    <div className="flex h-full">
-      <div className="w-64 shrink-0 overflow-y-auto border-r border-gray-800 p-3">
-        <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+    <div className="surface-panel flex h-full overflow-hidden">
+      <div className="w-72 shrink-0 overflow-y-auto border-r border-white/6 p-4">
+        <h3 className="section-label mb-3">
           Saved Workflows
         </h3>
         <WorkflowList />
@@ -104,13 +104,13 @@ export function WorkflowRunner() {
         {activeRunStatus !== "idle" && (
           <div
             className={clsx(
-              "flex items-center gap-2 border-b px-4 py-2 text-xs",
+              "flex items-center gap-2 border-b px-4 py-3 text-xs",
               activeRunStatus === "working" &&
-                "border-lattice-800 bg-lattice-950/50 text-lattice-300",
+                "border-sky-300/10 bg-sky-300/10 text-sky-100/90",
               activeRunStatus === "completed" &&
-                "border-emerald-800 bg-emerald-950/50 text-emerald-300",
+                "border-emerald-300/10 bg-emerald-300/10 text-emerald-100/90",
               activeRunStatus === "failed" &&
-                "border-red-800 bg-red-950/50 text-red-300"
+                "border-rose-300/10 bg-rose-300/10 text-rose-100/90"
             )}
           >
             {activeRunStatus === "working" && (
@@ -134,7 +134,7 @@ export function WorkflowRunner() {
             <button
               type="button"
               onClick={resetRun}
-              className="ml-auto text-[10px] uppercase tracking-wider text-gray-500 hover:text-gray-300"
+              className="ml-auto text-[10px] uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)]"
             >
               Dismiss
             </button>
@@ -142,7 +142,7 @@ export function WorkflowRunner() {
         )}
 
         {workflow ? (
-          <div className="min-h-0 flex-1">
+          <div className="min-h-0 flex-1 bg-slate-950/55">
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -164,13 +164,13 @@ export function WorkflowRunner() {
                 variant={BackgroundVariant.Dots}
                 gap={20}
                 size={1}
-                color="rgba(75, 85, 99, 0.15)"
+                color="rgba(148, 163, 184, 0.12)"
               />
             </ReactFlow>
           </div>
         ) : (
           <div className="flex flex-1 items-center justify-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-[var(--text-soft)]">
               Select a workflow to view and run it.
             </p>
           </div>

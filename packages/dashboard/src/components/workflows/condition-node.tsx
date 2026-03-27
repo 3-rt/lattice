@@ -21,27 +21,27 @@ export const ConditionNode = memo(function ConditionNode({
   return (
     <div
       className={clsx(
-        "w-48 rounded-lg border bg-gray-900 p-3 transition-all duration-300",
-        !status && "border-amber-800/60",
-        status === "pending" && "border-amber-800/60 opacity-60",
+        "workflow-condition-node w-52 rounded-[1rem] border bg-slate-950/95 p-3.5 transition-all duration-300",
+        !status && "border-amber-200/18",
+        status === "pending" && "border-amber-200/18 opacity-70",
         status === "working" &&
           "border-amber-400 shadow-[0_0_16px_4px_rgba(251,191,36,0.3)]",
         status === "completed" &&
           "border-emerald-400 shadow-[0_0_12px_4px_rgba(52,211,153,0.3)]",
         status === "failed" &&
-          "border-red-400 shadow-[0_0_12px_4px_rgba(248,113,113,0.3)]",
-        status === "skipped" && "border-gray-700 opacity-40",
-        nodeData.selected && "ring-2 ring-lattice-400"
+          "border-rose-400 shadow-[0_0_12px_4px_rgba(248,113,113,0.3)]",
+        status === "skipped" && "border-white/10 opacity-40",
+        nodeData.selected && "ring-2 ring-[var(--accent-primary)]"
       )}
     >
       <div className="flex items-center gap-2">
         <GitBranch className="h-4 w-4 shrink-0 text-amber-400" />
-        <span className="truncate text-xs font-semibold text-gray-100">
+        <span className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-strong)]">
           {nodeData.label}
         </span>
       </div>
 
-      <p className="mt-1 truncate text-[10px] text-gray-500">
+      <p className="mt-2 truncate text-[10px] text-[var(--text-muted)]">
         {nodeData.field} {nodeData.operator} {nodeData.value ?? ""}
       </p>
 

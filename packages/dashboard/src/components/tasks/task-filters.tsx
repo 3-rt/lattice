@@ -23,11 +23,11 @@ export function TaskFilters({
   onAgentChange,
 }: TaskFiltersProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-3">
       <select
         value={statusFilter}
         onChange={(event) => onStatusChange(event.target.value)}
-        className="rounded-md border border-gray-700 bg-gray-900 px-3 py-1.5 text-sm text-gray-300 focus:border-lattice-600 focus:outline-none"
+        className="ui-select w-full sm:w-52"
       >
         <option value="">All statuses</option>
         {STATUSES.map((status) => (
@@ -40,7 +40,7 @@ export function TaskFilters({
       <select
         value={agentFilter}
         onChange={(event) => onAgentChange(event.target.value)}
-        className="rounded-md border border-gray-700 bg-gray-900 px-3 py-1.5 text-sm text-gray-300 focus:border-lattice-600 focus:outline-none"
+        className="ui-select w-full sm:w-52"
       >
         <option value="">All agents</option>
         {agents.map((agent) => (

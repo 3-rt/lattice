@@ -6,9 +6,11 @@ export function Shell({ children }: { children: ReactNode }) {
   useSSE();
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="app-shell">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      <div className="app-canvas">
+        <main className="app-main">{children}</main>
+      </div>
     </div>
   );
 }

@@ -97,35 +97,52 @@ async function loadAdapters() {
   }
 
   if (adapters["openclaw"]?.enabled) {
-    const gatewayToken =
-      adapters["openclaw"].gatewayToken?.replace(
-        "${OPENCLAW_GATEWAY_TOKEN}",
-        process.env.OPENCLAW_GATEWAY_TOKEN ?? ""
-      ) ?? process.env.OPENCLAW_GATEWAY_TOKEN ?? "";
+    const resolveEnv = (val: string | undefined, envKey: string) =>
+      val?.replace(`\${${envKey}}`, process.env[envKey] ?? "") ?? process.env[envKey] ?? "";
 
-    if (!gatewayToken) {
-      console.log("  \u26A0 openclaw        OPENCLAW_GATEWAY_TOKEN not set");
-      console.log('                    \u2192 Set it with: export OPENCLAW_GATEWAY_TOKEN="your-token"');
+    const gatewayToken = resolveEnv(adapters["openclaw"].gatewayToken, "OPENCLAW_GATEWAY_TOKEN").replace(/\s+/g, "");
+    const deviceToken = resolveEnv(adapters["openclaw"].deviceToken, "OPENCLAW_DEVICE_TOKEN").replace(/\s+/g, "");
+
+    if (!gatewayToken || !deviceToken) {
+      const missing = [
+        !gatewayToken && "OPENCLAW_GATEWAY_TOKEN",
+        !deviceToken && "OPENCLAW_DEVICE_TOKEN",
+      ].filter(Boolean).join(" and ");
+      console.log(`  \u26A0 openclaw        ${missing} not set`);
       try {
         const { createOpenClawAdapter } = await import("@lattice/adapter-openclaw").catch(
           () => import("../../adapters/openclaw/src/index.ts")
         );
         const gatewayUrl = adapters["openclaw"].gatewayUrl ?? "http://localhost:18789";
-        const adapter = createOpenClawAdapter({ gatewayUrl, gatewayToken: "" });
+        const adapter = createOpenClawAdapter({
+          gatewayUrl,
+          gatewayToken: "",
+          deviceToken: "",
+          deviceIdentity: {
+            deviceId: "",
+            publicKeyPem: "",
+            privateKeyPem: "",
+            platform: "",
+          },
+        });
         registry.register(adapter);
         const entry = registry.listAgents().find((a) => a.name === "openclaw");
         if (entry) {
           entry.status = "offline";
-          entry.statusReason = "Gateway token not configured. Set OPENCLAW_GATEWAY_TOKEN in your environment.";
+          entry.statusReason = `${missing} not configured.`;
         }
-      } catch { /* ignore — adapter couldn't even load */ }
+      } catch { /* ignore */ }
     } else {
       try {
         const { createOpenClawAdapter } = await import("@lattice/adapter-openclaw").catch(
           () => import("../../adapters/openclaw/src/index.ts")
         );
+        const { readFileSync } = await import("node:fs");
+        const { resolve } = await import("node:path");
         const gatewayUrl = adapters["openclaw"].gatewayUrl ?? "http://localhost:18789";
-        const adapter = createOpenClawAdapter({ gatewayUrl, gatewayToken });
+        const identityPath = resolve(process.cwd(), adapters["openclaw"].deviceIdentityPath ?? ".openclaw-device.json");
+        const deviceIdentity = JSON.parse(readFileSync(identityPath, "utf8"));
+        const adapter = createOpenClawAdapter({ gatewayUrl, gatewayToken, deviceToken, deviceIdentity });
         registry.register(adapter);
         const result = await adapter.healthCheck();
         const { ok, reason } = typeof result === "boolean" ? { ok: result, reason: undefined } : result;

@@ -11,16 +11,16 @@ export const RelayNode = memo(function RelayNode({
   data,
 }: NodeProps & { data: RelayNodeData }) {
   return (
-    <div className="relative flex h-20 w-20 items-center justify-center rounded-full border-2 border-lattice-500 bg-gray-900 shadow-lg shadow-lattice-900/40">
-      <div className="absolute inset-0 rounded-full animate-breathe" />
+    <div className="relay-core relative flex h-24 w-24 items-center justify-center rounded-full border border-[var(--border-strong)] bg-slate-950/95 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_60px_rgba(2,8,20,0.55)]">
+      <div className="absolute inset-2 rounded-full border border-white/10 animate-breathe" />
       <div className="flex flex-col items-center gap-0.5 z-10">
-        <Zap className="h-5 w-5 text-lattice-400" />
-        <span className="text-[9px] font-bold uppercase tracking-widest text-lattice-300">
+        <Zap className="h-5 w-5 text-[var(--accent-primary-strong)]" />
+        <span className="text-[9px] font-bold uppercase tracking-[0.26em] text-sky-100/85">
           {data.label}
         </span>
       </div>
       {data.taskCount > 0 && (
-        <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-lattice-600 text-[9px] font-bold text-white shadow">
+        <div className="task pulse absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[9px] font-bold text-white shadow-[0_8px_20px_rgba(59,130,246,0.4)]">
           {data.taskCount}
         </div>
       )}

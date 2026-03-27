@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import type { LatticeDB } from "./db.js";
+import type { WorkflowDefinition } from "./workflow-types.js";
 
 export interface SeedResult {
   loaded: number;
@@ -28,10 +29,15 @@ export function seedWorkflows(db: LatticeDB, workflowDir: string): SeedResult {
       const raw = fs.readFileSync(filePath, "utf-8");
       const parsed = JSON.parse(raw) as {
         name?: string;
-        definition?: Record<string, unknown>;
+        definition?: WorkflowDefinition;
       };
 
-      if (!parsed.name || !parsed.definition) {
+      if (
+        !parsed.name ||
+        !parsed.definition ||
+        !Array.isArray(parsed.definition.nodes) ||
+        !Array.isArray(parsed.definition.edges)
+      ) {
         result.errors.push(`${file}: missing "name" or "definition" field`);
         continue;
       }

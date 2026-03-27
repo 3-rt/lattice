@@ -49,25 +49,27 @@ export function TasksPage() {
   }, [setTasks]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-gray-100">Tasks & Routing</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Task history, agent performance, and routing convergence
+    <div className="space-y-8">
+      <div className="page-header">
+        <p className="page-header-eyebrow">Operations history</p>
+        <h1 className="page-title">Review task outcomes and routing behavior.</h1>
+        <p className="page-description">
+          Use history for triage and audit trails, then switch to routing stats
+          when you need to understand agent performance patterns.
         </p>
       </div>
 
-      <div className="flex gap-1 border-b border-gray-800">
+      <div className="surface-panel inline-flex gap-1 p-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
             className={clsx(
-              "-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+              "rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors",
               activeTab === tab.id
-                ? "border-lattice-500 text-gray-100"
-                : "border-transparent text-gray-500 hover:text-gray-300"
+                ? "bg-white/10 text-[var(--text-strong)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-strong)]"
             )}
           >
             {tab.label}

@@ -24,24 +24,27 @@ export function LiveFlow() {
   useFlowEvents();
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Top bar with dispatch */}
-      <div className="shrink-0 border-b border-gray-800 px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-sm font-semibold text-gray-100">Live Flow</h1>
-            <p className="text-[10px] text-gray-500">
-              Real-time agent orchestration view
+    <div className="flex h-full flex-col gap-4">
+      <div className="surface-panel-strong shrink-0 overflow-hidden px-5 py-5">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-2xl">
+            <p className="page-header-eyebrow">Mission control</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[var(--text-strong)]">
+              Watch the relay, agents, and active work in one place.
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+              Live Flow is the high-signal view for orchestration. Use it when
+              you need immediate awareness of task routing, agent activity, and
+              system health.
             </p>
           </div>
-          <div className="flex-1 max-w-xl">
+          <div className="w-full max-w-3xl">
             <TaskDispatchBar />
           </div>
         </div>
       </div>
 
-      {/* Canvas + side panel */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex min-h-0 flex-1 gap-4">
         <div className="flex-1 min-w-0">
           <FlowCanvas />
         </div>

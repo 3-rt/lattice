@@ -117,7 +117,7 @@ export function FlowCanvas() {
   }
 
   return (
-    <div className="h-full w-full">
+    <div className="surface-panel-strong grid-faint h-full w-full overflow-hidden">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -139,7 +139,7 @@ export function FlowCanvas() {
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1}
-          color="rgba(75, 85, 99, 0.15)"
+          color="rgba(148, 163, 184, 0.12)"
         />
       </ReactFlow>
     </div>

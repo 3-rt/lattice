@@ -29,26 +29,26 @@ export function RoutingStatsTable() {
 
   if (loading && stats.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 py-12">
-        <p className="text-sm text-gray-500">Loading routing stats...</p>
+      <div className="surface-panel flex flex-col items-center justify-center py-14">
+        <p className="text-sm text-[var(--text-muted)]">Loading routing stats...</p>
       </div>
     );
   }
 
   if (error && stats.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 py-12">
-        <p className="text-sm text-red-400">Failed to load routing stats</p>
-        <p className="mt-1 text-xs text-gray-600">{error}</p>
+      <div className="surface-panel flex flex-col items-center justify-center py-14">
+        <p className="text-sm text-rose-300">Failed to load routing stats</p>
+        <p className="mt-1 text-xs text-[var(--text-soft)]">{error}</p>
       </div>
     );
   }
 
   if (stats.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 py-12">
-        <p className="text-sm text-gray-500">No routing stats yet</p>
-        <p className="mt-1 text-xs text-gray-600">
+      <div className="surface-panel flex flex-col items-center justify-center py-14">
+        <p className="text-sm text-[var(--text-muted)]">No routing stats yet</p>
+        <p className="mt-1 text-xs text-[var(--text-soft)]">
           Stats appear after agents complete tasks through the router
         </p>
       </div>
@@ -58,7 +58,7 @@ export function RoutingStatsTable() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-end gap-3">
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-rose-300">{error}</p>}
         <button
           type="button"
           onClick={() => {
@@ -66,14 +66,14 @@ export function RoutingStatsTable() {
             void loadStats();
           }}
           disabled={loading}
-          className="rounded-md border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:text-gray-200 disabled:opacity-50"
+          className="ui-button-secondary px-3 py-1.5 text-xs"
         >
           {loading ? "Refreshing..." : "Refresh"}
         </button>
       </div>
 
-      <div className="rounded-lg border border-gray-800 bg-gray-900/50">
-        <div className="flex items-center gap-3 border-b border-gray-800 px-4 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+      <div className="table-shell">
+        <div className="table-header">
           <span className="w-36 shrink-0">Agent</span>
           <span className="w-28 shrink-0">Category</span>
           <span className="w-48 shrink-0">Success Rate</span>
@@ -88,20 +88,20 @@ export function RoutingStatsTable() {
           return (
             <div
               key={`${row.agent_name}-${row.category}`}
-              className="flex items-center gap-3 border-b border-gray-800 px-4 py-3 text-sm last:border-b-0"
+              className="flex items-center gap-3 border-b border-white/6 px-4 py-3.5 text-sm last:border-b-0"
             >
-              <span className="w-36 shrink-0 truncate font-medium text-gray-200">
+              <span className="w-36 shrink-0 truncate font-medium text-[var(--text-strong)]">
                 {row.agent_name}
               </span>
 
               <span className="w-28 shrink-0">
-                <span className="rounded bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400">
+                <span className="rounded-full border border-white/8 bg-white/5 px-2.5 py-1 text-[0.7rem] text-[var(--text-muted)]">
                   {row.category}
                 </span>
               </span>
 
               <div className="flex w-48 shrink-0 items-center gap-2">
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-800">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/8">
                   <div
                     className={clsx(
                       "h-full rounded-full transition-all duration-500",
@@ -128,17 +128,17 @@ export function RoutingStatsTable() {
                 </span>
               </div>
 
-              <span className="w-20 shrink-0 text-right text-gray-400">
+              <span className="w-20 shrink-0 text-right text-[var(--text-muted)]">
                 {summary.averageLatencyMs > 0
                   ? `${summary.averageLatencyMs}ms`
                   : "—"}
               </span>
 
-              <span className="w-20 shrink-0 text-right text-gray-400">
+              <span className="w-20 shrink-0 text-right text-[var(--text-muted)]">
                 {row.total_cost > 0 ? `$${row.total_cost.toFixed(2)}` : "—"}
               </span>
 
-              <span className="w-16 shrink-0 text-right text-gray-500">
+              <span className="w-16 shrink-0 text-right text-[var(--text-soft)]">
                 {summary.total}
               </span>
             </div>

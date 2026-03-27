@@ -36,10 +36,10 @@ export const AnimatedEdge = memo(function AnimatedEdge({
   const status = activeEdge?.status ?? "routing";
 
   const colorMap = {
-    routing: { stroke: "#4c6ef5", glow: "rgba(76, 110, 245, 0.6)" },
-    working: { stroke: "#4c6ef5", glow: "rgba(76, 110, 245, 0.8)" },
-    success: { stroke: "#34d399", glow: "rgba(52, 211, 153, 0.6)" },
-    error: { stroke: "#f87171", glow: "rgba(248, 113, 113, 0.6)" },
+    routing: { stroke: "#60a5fa", glow: "rgba(96, 165, 250, 0.42)" },
+    working: { stroke: "#93c5fd", glow: "rgba(147, 197, 253, 0.62)" },
+    success: { stroke: "#34d399", glow: "rgba(52, 211, 153, 0.44)" },
+    error: { stroke: "#fb7185", glow: "rgba(251, 113, 133, 0.42)" },
   };
 
   const colors = colorMap[status];
@@ -51,8 +51,8 @@ export const AnimatedEdge = memo(function AnimatedEdge({
         id={id}
         path={edgePath}
         style={{
-          stroke: "rgba(75, 85, 99, 0.3)",
-          strokeWidth: 1.5,
+          stroke: "rgba(148, 163, 184, 0.22)",
+          strokeWidth: 1.75,
         }}
       />
 
@@ -63,7 +63,7 @@ export const AnimatedEdge = memo(function AnimatedEdge({
             d={edgePath}
             fill="none"
             stroke={colors.glow}
-            strokeWidth={8}
+            strokeWidth={7}
             strokeLinecap="round"
             className="animate-edge-pulse"
             style={{ filter: `blur(4px)` }}
@@ -74,7 +74,7 @@ export const AnimatedEdge = memo(function AnimatedEdge({
             d={edgePath}
             fill="none"
             stroke={colors.stroke}
-            strokeWidth={2.5}
+            strokeWidth={2.35}
             strokeLinecap="round"
             className="animate-edge-pulse"
           />

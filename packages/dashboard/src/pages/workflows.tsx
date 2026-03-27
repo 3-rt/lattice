@@ -23,21 +23,30 @@ export function Workflows() {
   }, [setWorkflows]);
 
   return (
-    <div className="-m-6 flex h-full flex-col">
-      <div className="shrink-0 border-b border-gray-800 px-4">
-        <div className="flex items-center gap-4">
-          <h1 className="py-3 text-sm font-semibold text-gray-100">Workflows</h1>
-          <div className="ml-4 flex gap-1">
+    <div className="flex h-full flex-col gap-4">
+      <div className="surface-panel shrink-0 px-5 py-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <p className="page-header-eyebrow">Workflow tooling</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[var(--text-strong)]">
+              Build precise multi-agent workflows.
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
+              Use the editor for structure and logic, then switch to the runner
+              to inspect saved workflows and execute them with live status.
+            </p>
+          </div>
+          <div className="surface-muted inline-flex gap-1 p-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={clsx(
-                  "flex items-center gap-1.5 rounded-t-md px-3 py-2 text-xs font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded-2xl px-3.5 py-2.5 text-xs font-medium transition-colors",
                   activeTab === tab.id
-                    ? "border-b-2 border-lattice-500 bg-gray-800 text-gray-100"
-                    : "text-gray-500 hover:text-gray-300"
+                    ? "bg-white/10 text-[var(--text-strong)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-strong)]"
                 )}
               >
                 <tab.icon className="h-3.5 w-3.5" />

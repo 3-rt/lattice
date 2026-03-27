@@ -44,7 +44,12 @@ export function registerStart(program: Command) {
             const { createOpenClawAdapter } = await import("@lattice/adapter-openclaw");
             const gatewayUrl = adapters["openclaw"]?.gatewayUrl ?? "http://localhost:18789";
             const gatewayToken = (adapters["openclaw"]?.gatewayToken as string)?.replace("${OPENCLAW_GATEWAY_TOKEN}", process.env.OPENCLAW_GATEWAY_TOKEN ?? "") ?? process.env.OPENCLAW_GATEWAY_TOKEN ?? "";
-            registry.register(createOpenClawAdapter({ gatewayUrl, gatewayToken }));
+            const deviceToken = (adapters["openclaw"]?.deviceToken as string)?.replace("${OPENCLAW_DEVICE_TOKEN}", process.env.OPENCLAW_DEVICE_TOKEN ?? "") ?? process.env.OPENCLAW_DEVICE_TOKEN ?? "";
+            const { readFileSync } = await import("node:fs");
+            const { resolve } = await import("node:path");
+            const identityPath = resolve(process.cwd(), (adapters["openclaw"]?.deviceIdentityPath as string) ?? ".openclaw-device.json");
+            const deviceIdentity = JSON.parse(readFileSync(identityPath, "utf8"));
+            registry.register(createOpenClawAdapter({ gatewayUrl, gatewayToken, deviceToken, deviceIdentity }));
             console.log("  \u2713 openclaw adapter loaded");
           } catch { /* not installed */ }
         }

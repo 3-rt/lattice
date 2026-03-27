@@ -180,6 +180,17 @@ describe("OpenClawAdapter", () => {
     return createOpenClawAdapter({
       gatewayUrl: `http://localhost:${port}`,
       gatewayToken: token,
+      deviceToken: "device-token-123",
+      deviceIdentity: {
+        deviceId: "device-123",
+        publicKeyPem: `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEA7na4MEC2JcmZ6M0KBPXn1HULICwhf66A1VpzwuNFuG0=
+-----END PUBLIC KEY-----`,
+        privateKeyPem: `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIO0uohsEiL/KZ8nfdXbra+XUl3Bd6mVTRu6YQ8VE3d2r
+-----END PRIVATE KEY-----`,
+        platform: "linux",
+      },
     });
   }
 

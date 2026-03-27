@@ -27,8 +27,8 @@ function onDragStart(event: DragEvent<HTMLDivElement>, nodeType: string) {
 
 export function NodePalette() {
   return (
-    <div className="space-y-2">
-      <h3 className="px-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+    <div className="space-y-3">
+      <h3 className="section-label px-1">
         Node Palette
       </h3>
       {nodeBlocks.map((block) => (
@@ -36,13 +36,15 @@ export function NodePalette() {
           key={block.type}
           draggable
           onDragStart={(event) => onDragStart(event, block.type)}
-          className={`cursor-grab rounded-md border ${block.borderColor} bg-gray-900/80 p-2.5 transition-colors hover:bg-gray-800/80 active:cursor-grabbing`}
+          className={`workflow-palette-card cursor-grab rounded-2xl border ${block.borderColor} bg-white/[0.03] p-3 transition-all hover:bg-white/[0.06] active:cursor-grabbing`}
         >
           <div className="flex items-center gap-3">
-            <block.icon className={`h-4 w-4 shrink-0 ${block.color}`} />
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-black/10">
+              <block.icon className={`h-4 w-4 shrink-0 ${block.color}`} />
+            </span>
             <div>
-              <p className="text-xs font-medium text-gray-200">{block.label}</p>
-              <p className="text-[10px] text-gray-500">{block.description}</p>
+              <p className="text-xs font-medium text-[var(--text-strong)]">{block.label}</p>
+              <p className="text-[10px] text-[var(--text-muted)]">{block.description}</p>
             </div>
           </div>
         </div>

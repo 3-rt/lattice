@@ -41,14 +41,14 @@ export const WorkflowEdge = memo(function WorkflowEdge({
         id={id}
         path={edgePath}
         style={{
-          stroke: selected ? "rgba(139, 92, 246, 0.8)" : "rgba(107, 114, 128, 0.5)",
-          strokeWidth: selected ? 3 : 2,
+          stroke: selected ? "rgba(96, 165, 250, 0.72)" : "rgba(148, 163, 184, 0.42)",
+          strokeWidth: selected ? 2.5 : 1.75,
         }}
       />
       {mappingKeys.length > 0 && (
         <EdgeLabelRenderer>
           <div
-            className="pointer-events-none absolute rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 text-[9px] text-gray-400"
+            className="pointer-events-none absolute rounded-full border border-white/8 bg-slate-900/95 px-2 py-0.5 text-[9px] text-[var(--text-muted)]"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             }}

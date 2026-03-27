@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import crypto from "node:crypto";
 import WebSocket from "ws";
 import type {
   LatticeAdapter,
@@ -9,9 +10,34 @@ import type {
   HealthCheckResult,
 } from "@lattice/adapter-base";
 
+export interface DeviceIdentity {
+  deviceId: string;
+  publicKeyPem: string;
+  privateKeyPem: string;
+  /** Platform the device was paired from (e.g. "linux"). Used in signed auth payload. */
+  platform: string;
+}
+
 export interface OpenClawConfig {
   gatewayUrl: string;
+  /** Static gateway auth token (authenticates the WebSocket connection). */
   gatewayToken: string;
+  /** Scoped device token from `openclaw devices rotate` (carries operator scopes). */
+  deviceToken: string;
+  /** Device identity with Ed25519 keypair for signing the connect handshake. */
+  deviceIdentity: DeviceIdentity;
+}
+
+function hasRequiredDeviceAuth(config: Pick<OpenClawConfig, "gatewayToken" | "deviceToken" | "deviceIdentity">): boolean {
+  const { gatewayToken, deviceToken, deviceIdentity } = config;
+  return Boolean(
+    gatewayToken &&
+      deviceToken &&
+      deviceIdentity?.deviceId &&
+      deviceIdentity?.publicKeyPem &&
+      deviceIdentity?.privateKeyPem &&
+      deviceIdentity?.platform,
+  );
 }
 
 const AGENT_CARD: AgentCard = {
@@ -79,6 +105,67 @@ function extractText(message: unknown): string | null {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Device-signing helpers (OpenClaw V3 auth protocol)
+// ---------------------------------------------------------------------------
+
+const CLIENT_ID = "gateway-client";
+const CLIENT_MODE = "backend";
+const ROLE = "operator";
+const SCOPES = ["operator.admin", "operator.read", "operator.write", "operator.approvals"];
+
+function base64UrlEncode(buf: Buffer): string {
+  return buf.toString("base64url");
+}
+
+/** Reproduce buildDeviceAuthPayloadV3 — pipe-delimited string of auth fields. */
+function buildDeviceAuthPayloadV3(params: {
+  deviceId: string;
+  clientId: string;
+  clientMode: string;
+  role: string;
+  scopes: string[];
+  signedAtMs: number;
+  token: string;
+  nonce: string;
+  platform: string;
+  deviceFamily: string | null;
+}): string {
+  return [
+    "v3",
+    params.deviceId,
+    params.clientId,
+    params.clientMode,
+    params.role,
+    params.scopes.join(","),
+    String(params.signedAtMs),
+    params.token ?? "",
+    params.nonce,
+    params.platform ?? "",
+    params.deviceFamily ?? "",
+  ].join("|");
+}
+
+/** Ed25519 sign over the UTF-8 payload, return base64url. */
+function signDevicePayload(privateKeyPem: string, payload: string): string {
+  const key = crypto.createPrivateKey(privateKeyPem);
+  return base64UrlEncode(
+    crypto.sign(null, Buffer.from(payload, "utf8"), key),
+  );
+}
+
+/** Extract raw 32-byte Ed25519 public key from PEM, return base64url. */
+function publicKeyRawBase64Url(publicKeyPem: string): string {
+  const spki = crypto.createPublicKey(publicKeyPem).export({ type: "spki", format: "der" });
+  // Ed25519 SPKI is 44 bytes: 12-byte header + 32-byte raw key
+  const raw = spki.subarray(-32);
+  return base64UrlEncode(raw);
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket client
+// ---------------------------------------------------------------------------
+
 interface GatewayMessage {
   type: string;
   [key: string]: unknown;
@@ -100,7 +187,7 @@ interface GatewayResponse extends GatewayMessage {
 
 /**
  * Manages a single WebSocket connection to the OpenClaw gateway.
- * Handles the connect.challenge → connect auth handshake,
+ * Handles the connect.challenge → signed connect auth handshake,
  * and exposes an RPC request() method.
  */
 class OpenClawGatewayClient {
@@ -118,15 +205,17 @@ class OpenClawGatewayClient {
 
   constructor(
     private wsUrl: string,
-    private token: string,
+    private gatewayToken: string,
+    private deviceToken: string,
+    private identity: DeviceIdentity,
   ) {}
 
-  /** Connect and authenticate. Resolves when the connect handshake completes. */
+  /** Connect and authenticate with signed device identity. */
   connect(): Promise<void> {
     if (this.connectPromise) return this.connectPromise;
 
     this.connectPromise = new Promise<void>((resolve, reject) => {
-      const wsEndpoint = `${this.wsUrl}/ws`;
+      const wsEndpoint = this.wsUrl;
       const ws = new WebSocket(wsEndpoint);
       this.ws = ws;
 
@@ -145,7 +234,6 @@ class OpenClawGatewayClient {
       ws.on("close", () => {
         this.connected = false;
         this.ws = null;
-        // Reject all pending requests
         for (const [, p] of this.pending) {
           p.reject(new Error("WebSocket closed"));
         }
@@ -153,9 +241,10 @@ class OpenClawGatewayClient {
       });
 
       ws.on("message", (data) => {
+        const raw = data.toString();
         let msg: GatewayMessage;
         try {
-          msg = JSON.parse(data.toString()) as GatewayMessage;
+          msg = JSON.parse(raw) as GatewayMessage;
         } catch {
           return;
         }
@@ -164,11 +253,32 @@ class OpenClawGatewayClient {
           const event = msg as GatewayEvent;
 
           if (event.event === "connect.challenge") {
-            // Respond to challenge with connect request
             const nonce =
               event.payload && typeof event.payload.nonce === "string"
                 ? event.payload.nonce
                 : undefined;
+            if (!nonce) {
+              clearTimeout(timeout);
+              reject(new Error("connect.challenge missing nonce"));
+              return;
+            }
+
+            // Build signed connect request
+            const signedAtMs = Date.now();
+            const payload = buildDeviceAuthPayloadV3({
+              deviceId: this.identity.deviceId,
+              clientId: CLIENT_ID,
+              clientMode: CLIENT_MODE,
+              role: ROLE,
+              scopes: SCOPES,
+              signedAtMs,
+              token: this.gatewayToken,
+              nonce,
+              platform: this.identity.platform,
+              deviceFamily: null,
+            });
+            const signature = signDevicePayload(this.identity.privateKeyPem, payload);
+
             const connectId = randomUUID();
             const connectReq = {
               type: "req",
@@ -178,20 +288,29 @@ class OpenClawGatewayClient {
                 minProtocol: 3,
                 maxProtocol: 3,
                 client: {
-                  id: "gateway-client",
+                  id: CLIENT_ID,
                   version: "1.0.0",
-                  platform: "node",
-                  mode: "node",
+                  platform: this.identity.platform,
+                  mode: CLIENT_MODE,
                   instanceId: randomUUID(),
                 },
-                role: "operator",
-                scopes: ["operator.admin", "operator.read", "operator.write", "operator.approvals"],
+                role: ROLE,
+                scopes: SCOPES,
                 caps: [],
-                auth: { token: this.token },
+                auth: {
+                  token: this.gatewayToken,
+                  deviceToken: this.deviceToken,
+                },
+                device: {
+                  id: this.identity.deviceId,
+                  publicKey: publicKeyRawBase64Url(this.identity.publicKeyPem),
+                  signature,
+                  signedAt: signedAtMs,
+                  nonce,
+                },
               },
             };
 
-            // Register pending for the connect response
             this.pending.set(connectId, {
               resolve: () => {
                 clearTimeout(timeout);
@@ -280,13 +399,19 @@ function buildPrompt(task: Task): string {
 
 export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
   const wsUrl = toWsUrl(config.gatewayUrl);
-  const token = config.gatewayToken;
+  const { gatewayToken, deviceToken, deviceIdentity } = config;
+  const hasDeviceAuth = hasRequiredDeviceAuth(config);
   let client: OpenClawGatewayClient | null = null;
 
   async function getClient(): Promise<OpenClawGatewayClient> {
+    if (!hasDeviceAuth) {
+      throw new Error(
+        "Gateway token, device token, and device identity are required. Set OPENCLAW_GATEWAY_TOKEN, OPENCLAW_DEVICE_TOKEN, and a valid device identity file.",
+      );
+    }
     if (client && client.isConnected()) return client;
     client?.close();
-    client = new OpenClawGatewayClient(wsUrl, token);
+    client = new OpenClawGatewayClient(wsUrl, gatewayToken, deviceToken, deviceIdentity);
     await client.connect();
     return client;
   }
@@ -386,8 +511,12 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
     },
 
     async healthCheck(): Promise<HealthCheckResult> {
-      if (!token) {
-        return { ok: false, reason: "Gateway token not configured. Set OPENCLAW_GATEWAY_TOKEN in your environment." };
+      if (!hasDeviceAuth) {
+        return {
+          ok: false,
+          reason:
+            "Gateway token, device token, or device identity not configured. Set OPENCLAW_GATEWAY_TOKEN, OPENCLAW_DEVICE_TOKEN, and a valid device identity file.",
+        };
       }
       try {
         const gw = await getClient();
@@ -400,8 +529,8 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
         if (/timeout/i.test(msg)) {
           return { ok: false, reason: `Can't reach OpenClaw gateway at ${wsUrl}. Check that the gateway is running.` };
         }
-        if (/rejected|auth|scope/i.test(msg)) {
-          return { ok: false, reason: "Gateway rejected the token. Check that your OPENCLAW_GATEWAY_TOKEN has the right permissions." };
+        if (/rejected|auth|scope|mismatch|unauthorized/i.test(msg)) {
+          return { ok: false, reason: `Gateway auth failed: ${msg}` };
         }
         return { ok: false, reason: msg };
       }

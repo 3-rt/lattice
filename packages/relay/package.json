@@ -7,7 +7,7 @@
   "scripts": {
     "build": "cd ../.. && npm run build --workspace=packages/adapters/base && cd packages/relay && tsup src/index.ts --format esm --dts",
     "dev": "tsx watch src/main.ts",
-    "test": "vitest run"
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@lattice/adapter-base": "*",

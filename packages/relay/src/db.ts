@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import type { AgentCard, Message } from "@lattice/adapter-base";
+import type { WorkflowDefinition } from "./workflow-types.ts";
 
 // Row types matching SQLite columns
 export interface AgentRow {
@@ -99,7 +100,7 @@ export interface LatticeDB {
   getRoutingStats(): RoutingStatsRow[];
 
   // Workflow methods
-  insertWorkflow(id: string, name: string, definition: Record<string, unknown>): void;
+  insertWorkflow(id: string, name: string, definition: WorkflowDefinition): void;
   getWorkflow(id: string): WorkflowRow | undefined;
   listWorkflows(): WorkflowRow[];
   insertWorkflowRun(id: string, workflowId: string): void;
@@ -372,7 +373,7 @@ export function createDatabase(dbPath: string): LatticeDB {
       return stmts.getRoutingStats.all() as RoutingStatsRow[];
     },
 
-    insertWorkflow(id: string, name: string, definition: Record<string, unknown>): void {
+    insertWorkflow(id: string, name: string, definition: WorkflowDefinition): void {
       stmts.insertWorkflow.run(id, name, JSON.stringify(definition));
     },
     getWorkflow(id: string): WorkflowRow | undefined {

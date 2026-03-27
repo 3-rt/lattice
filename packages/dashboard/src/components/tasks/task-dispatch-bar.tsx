@@ -25,36 +25,52 @@ export function TaskDispatchBar() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <input
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Describe a task for your agents..."
-        className="flex-1 rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:border-lattice-600 focus:outline-none focus:ring-1 focus:ring-lattice-600"
-      />
-      <select
-        value={selectedAgent}
-        onChange={(e) => setSelectedAgent(e.target.value)}
-        className="rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-300 focus:border-lattice-600 focus:outline-none"
-      >
-        <option value="">Auto-route</option>
-        {agents
-          .filter((a) => a.status === "online")
-          .map((a) => (
-            <option key={a.name} value={a.name}>
-              {a.name}
-            </option>
-          ))}
-      </select>
-      <button
-        type="submit"
-        disabled={!text.trim() || sending}
-        className="flex items-center gap-2 rounded-md bg-lattice-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-lattice-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <Send className="h-4 w-4" />
-        Send
-      </button>
+    <form onSubmit={handleSubmit} className="surface-panel space-y-4 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="section-label">Dispatch task</p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            Describe the outcome you need. Route automatically or target a ready
+            agent directly.
+          </p>
+        </div>
+        <div className="status-pill whitespace-nowrap">
+          <span className="status-dot bg-[var(--accent-primary)]" />
+          <span>{agents.filter((a) => a.status === "online").length} online</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 xl:flex-row">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Describe a task for your agents..."
+          className="ui-input flex-1"
+        />
+        <select
+          value={selectedAgent}
+          onChange={(e) => setSelectedAgent(e.target.value)}
+          className="ui-select xl:w-56"
+        >
+          <option value="">Auto-route</option>
+          {agents
+            .filter((a) => a.status === "online")
+            .map((a) => (
+              <option key={a.name} value={a.name}>
+                {a.name}
+              </option>
+            ))}
+        </select>
+        <button
+          type="submit"
+          disabled={!text.trim() || sending}
+          className="ui-button-primary xl:self-stretch"
+        >
+          <Send className="h-4 w-4" />
+          {sending ? "Dispatching..." : "Dispatch task"}
+        </button>
+      </div>
     </form>
   );
 }

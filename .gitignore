@@ -14,3 +14,4 @@ data/
 *.db-wal
 coverage/
 .demo-*.pid
+.openclaw-device.json

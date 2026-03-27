@@ -10,12 +10,12 @@ interface TaskRowProps {
 }
 
 const statusColors: Record<string, string> = {
-  submitted: "bg-gray-500",
-  working: "bg-yellow-400 animate-pulse",
+  submitted: "bg-slate-400",
+  working: "animate-pulse bg-amber-400",
   completed: "bg-emerald-400",
-  failed: "bg-red-400",
-  canceled: "bg-gray-600",
-  "input-required": "bg-amber-400",
+  failed: "bg-rose-400",
+  canceled: "bg-slate-500",
+  "input-required": "bg-yellow-300",
 };
 
 export function TaskRow({ task }: TaskRowProps) {
@@ -31,40 +31,42 @@ export function TaskRow({ task }: TaskRowProps) {
   const taskPreview = inputText.slice(0, 80) || task.id.slice(0, 12);
 
   return (
-    <div className="border-b border-gray-800 last:border-b-0">
+    <div className="border-b border-white/6 last:border-b-0">
       <button
         type="button"
         onClick={() => setExpanded((open) => !open)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-gray-900/50"
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-sm transition-colors hover:bg-white/5"
       >
         <ChevronRight
           className={clsx(
-            "h-3.5 w-3.5 text-gray-500 transition-transform",
+            "h-3.5 w-3.5 text-[var(--text-soft)] transition-transform",
             expanded && "rotate-90"
           )}
         />
 
-        <div className="flex w-28 shrink-0 items-center gap-1.5">
+        <div className="w-28 shrink-0">
+          <div className="status-pill justify-start">
           <div
             className={clsx(
-              "h-2 w-2 rounded-full",
+              "status-dot",
               statusColors[task.status] ?? "bg-gray-500"
             )}
           />
-          <span className="text-gray-300">{task.status}</span>
+            <span>{task.status}</span>
+          </div>
         </div>
 
-        <span className="w-36 shrink-0 truncate text-gray-400">
+        <span className="w-36 shrink-0 truncate text-[var(--text-muted)]">
           {task.metadata?.assignedAgent || "—"}
         </span>
 
-        <span className="flex-1 truncate text-gray-400">{taskPreview}</span>
+        <span className="flex-1 truncate text-[var(--text-main)]">{taskPreview}</span>
 
-        <span className="w-20 shrink-0 text-right text-gray-500">
+        <span className="w-20 shrink-0 text-right text-[var(--text-muted)]">
           {latency != null ? `${latency}ms` : "—"}
         </span>
 
-        <span className="w-20 shrink-0 text-right text-xs text-gray-600">
+        <span className="w-20 shrink-0 text-right text-xs text-[var(--text-soft)]">
           {createdAt}
         </span>
       </button>
@@ -77,13 +79,13 @@ export function TaskRow({ task }: TaskRowProps) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="ml-8 space-y-3 px-4 pb-4 pt-1">
+            <div className="ml-8 space-y-4 px-4 pb-4 pt-1">
               {task.metadata?.routingReason && (
                 <div>
-                  <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Routing Reason
+                  <span className="section-label">
+                    Routing signal
                   </span>
-                  <p className="mt-0.5 text-sm text-gray-400">
+                  <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
                     {task.metadata.routingReason}
                   </p>
                 </div>
@@ -91,10 +93,10 @@ export function TaskRow({ task }: TaskRowProps) {
 
               {inputText && (
                 <div>
-                  <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <span className="section-label">
                     Input
                   </span>
-                  <pre className="mt-0.5 max-h-48 overflow-y-auto whitespace-pre-wrap rounded border border-gray-800 bg-gray-950 p-3 text-xs text-gray-300">
+                  <pre className="surface-muted mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap p-3 text-xs text-[var(--text-main)]">
                     {inputText}
                   </pre>
                 </div>
@@ -102,10 +104,10 @@ export function TaskRow({ task }: TaskRowProps) {
 
               {outputText && (
                 <div>
-                  <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <span className="section-label">
                     Output
                   </span>
-                  <pre className="mt-0.5 max-h-48 overflow-y-auto whitespace-pre-wrap rounded border border-gray-800 bg-gray-950 p-3 text-xs text-gray-300">
+                  <pre className="surface-muted mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap p-3 text-xs text-[var(--text-main)]">
                     {outputText}
                   </pre>
                 </div>
@@ -116,19 +118,19 @@ export function TaskRow({ task }: TaskRowProps) {
                   <button
                     type="button"
                     onClick={() => setShowDetail((v) => !v)}
-                    className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                    className="text-xs text-[var(--text-soft)] transition-colors hover:text-[var(--text-main)]"
                   >
                     {showDetail ? "Hide details" : "Show details"}
                   </button>
                   {showDetail && (
-                    <pre className="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap rounded border border-gray-800 bg-gray-950 p-2 text-[10px] text-gray-600">
+                    <pre className="surface-muted mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap p-2 text-[10px] text-[var(--text-soft)]">
                       {errorDetail}
                     </pre>
                   )}
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-4 text-xs text-gray-600">
+              <div className="flex flex-wrap gap-4 text-xs text-[var(--text-soft)]">
                 <span>ID: {task.id}</span>
                 {task.metadata?.cost != null && (
                   <span>Cost: ${task.metadata.cost.toFixed(4)}</span>
