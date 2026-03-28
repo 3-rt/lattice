@@ -143,7 +143,12 @@ async function loadAdapters() {
         const identityPath = resolve(process.cwd(), adapters["openclaw"].deviceIdentityPath ?? ".openclaw-device.json");
         const deviceIdentity = JSON.parse(readFileSync(identityPath, "utf8"));
         const promptPrefix = adapters["openclaw"].promptPrefix;
-        const adapter = createOpenClawAdapter({ gatewayUrl, gatewayToken, deviceToken, deviceIdentity, ...(promptPrefix !== undefined && { promptPrefix }) });
+        const bridgeOpts = adapters["openclaw"].bridge;
+        const adapter = createOpenClawAdapter({
+          gatewayUrl, gatewayToken, deviceToken, deviceIdentity,
+          ...(promptPrefix !== undefined && { promptPrefix }),
+          ...(bridgeOpts && { bridge: bridgeOpts }),
+        });
         registry.register(adapter);
         const result = await adapter.healthCheck();
         const { ok, reason } = typeof result === "boolean" ? { ok: result, reason: undefined } : result;
@@ -153,6 +158,66 @@ async function loadAdapters() {
           console.log(`  \u26A0 openclaw        ${reason ?? "offline"}`);
         } else {
           console.log("  \u2713 openclaw        ready");
+        }
+
+        // --- Telegram Bridge ---
+        if (adapters["openclaw"].bridge?.enabled !== false) {
+          adapter.onInboundMessage(async (message) => {
+            console.log(`  \u26A1 Bridge: intercepted "${message.text.slice(0, 60)}..." from ${message.sender} (${message.channel})`);
+
+            bus.emit({
+              type: "message:received",
+              from: message.sender,
+              to: "lattice",
+              taskId: "",
+              preview: message.text.slice(0, 100),
+            });
+
+            // Find the Bug Triage workflow by name
+            const workflows = db.listWorkflows();
+            const bugTriageWf = workflows.find((w) =>
+              w.name === (adapters["openclaw"].bridge?.workflowName ?? "Bug Triage Pipeline")
+            );
+
+            if (!bugTriageWf) {
+              console.log("  \u26A0 Bridge: Bug Triage workflow not found, skipping");
+              await adapter.sendToSession(message.sessionKey, "Sorry, the bug triage workflow is not configured.");
+              return;
+            }
+
+            try {
+              const result = await workflowEngine.runWorkflow(bugTriageWf.id, {
+                bugReport: message.text,
+              });
+
+              // Extract the final step's output (compose node)
+              const composeOutput = result.context["compose"];
+              const replyText = composeOutput?.result
+                ?? composeOutput?.artifacts?.[0]?.parts?.[0]?.text
+                ?? "We investigated your bug report but couldn't generate a summary. Our team will follow up.";
+
+              await adapter.sendToSession(message.sessionKey, replyText);
+
+              bus.emit({
+                type: "message:sent",
+                from: "lattice",
+                to: message.sender,
+                taskId: "",
+                preview: replyText.slice(0, 100),
+              });
+
+              console.log(`  \u2713 Bridge: replied to ${message.sender}`);
+            } catch (err) {
+              const errorMsg = err instanceof Error ? err.message : String(err);
+              console.log(`  \u2717 Bridge: workflow failed \u2014 ${errorMsg}`);
+              await adapter.sendToSession(
+                message.sessionKey,
+                "We hit an issue investigating your bug. Our team has been notified."
+              ).catch(() => {});
+            }
+          });
+
+          console.log("  \u26A1 Bridge: listening for BUG: messages");
         }
       } catch (err) {
         console.log(`  \u2717 openclaw        ${err instanceof Error ? err.message : err}`);
