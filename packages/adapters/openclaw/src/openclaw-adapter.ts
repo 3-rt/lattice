@@ -26,6 +26,11 @@ export interface OpenClawConfig {
   deviceToken: string;
   /** Device identity with Ed25519 keypair for signing the connect handshake. */
   deviceIdentity: DeviceIdentity;
+  /**
+   * Prompt prefix prepended to every task to give the agent context about
+   * available tools/integrations. Set to "" to disable.
+   */
+  promptPrefix?: string;
 }
 
 function hasRequiredDeviceAuth(config: Pick<OpenClawConfig, "gatewayToken" | "deviceToken" | "deviceIdentity">): boolean {
@@ -388,19 +393,24 @@ class OpenClawGatewayClient {
   }
 }
 
-function buildPrompt(task: Task): string {
-  return task.history
+const DEFAULT_PROMPT_PREFIX =
+  "Use all available tools and integrations on this host (Google Drive, Gmail, Telegram, web browsing, file management, scheduling, etc.) as needed to complete the task. Do not ask for confirmation — just do it.\n\n";
+
+function buildPrompt(task: Task, promptPrefix: string): string {
+  const userText = task.history
     .filter((m) => m.role === "user")
     .flatMap((m) => m.parts)
     .filter((p) => p.type === "text" && p.text)
     .map((p) => p.text!)
     .join("\n\n");
+  return promptPrefix + userText;
 }
 
 export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
   const wsUrl = toWsUrl(config.gatewayUrl);
   const { gatewayToken, deviceToken, deviceIdentity } = config;
   const hasDeviceAuth = hasRequiredDeviceAuth(config);
+  const promptPrefix = config.promptPrefix ?? DEFAULT_PROMPT_PREFIX;
   let client: OpenClawGatewayClient | null = null;
 
   async function getClient(): Promise<OpenClawGatewayClient> {
@@ -422,7 +432,7 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
     },
 
     async executeTask(task: Task): Promise<Task> {
-      const prompt = buildPrompt(task);
+      const prompt = buildPrompt(task, promptPrefix);
       const sessionKey = `lattice-${task.id}`;
       const runId = randomUUID();
 

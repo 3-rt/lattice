@@ -142,7 +142,8 @@ async function loadAdapters() {
         const gatewayUrl = adapters["openclaw"].gatewayUrl ?? "http://localhost:18789";
         const identityPath = resolve(process.cwd(), adapters["openclaw"].deviceIdentityPath ?? ".openclaw-device.json");
         const deviceIdentity = JSON.parse(readFileSync(identityPath, "utf8"));
-        const adapter = createOpenClawAdapter({ gatewayUrl, gatewayToken, deviceToken, deviceIdentity });
+        const promptPrefix = adapters["openclaw"].promptPrefix;
+        const adapter = createOpenClawAdapter({ gatewayUrl, gatewayToken, deviceToken, deviceIdentity, ...(promptPrefix !== undefined && { promptPrefix }) });
         registry.register(adapter);
         const result = await adapter.healthCheck();
         const { ok, reason } = typeof result === "boolean" ? { ok: result, reason: undefined } : result;
