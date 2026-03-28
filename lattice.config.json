@@ -13,7 +13,13 @@
       "gatewayUrl": "http://100.98.106.46:18789",
       "gatewayToken": "${OPENCLAW_GATEWAY_TOKEN}",
       "deviceToken": "${OPENCLAW_DEVICE_TOKEN}",
-      "deviceIdentityPath": ".openclaw-device.json"
+      "deviceIdentityPath": ".openclaw-device.json",
+      "bridge": {
+        "enabled": true,
+        "triggerPrefix": "BUG:",
+        "ackMessage": "Bug received. Investigating across agents...",
+        "workflowName": "Bug Triage Pipeline"
+      }
     },
     "codex": {
       "enabled": true,

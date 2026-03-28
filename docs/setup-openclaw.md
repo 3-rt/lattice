@@ -231,6 +231,39 @@ The health check runs on connect. If auth succeeds but the health check fails, o
 
 If the `platform` in `.openclaw-device.json` doesn't match the platform where the device was paired, the signature verification will fail. The `platform` field is part of the signed payload.
 
+## Telegram Bridge (Optional)
+
+Lattice can intercept inbound Telegram messages and route them through multi-agent workflows.
+
+### How it works
+
+1. Customer sends a Telegram message to your OpenClaw bot starting with `BUG:`
+2. Lattice intercepts the message, aborts OpenClaw's auto-response
+3. Sends an acknowledgement ("Bug received. Investigating across agents...")
+4. Triggers the Bug Triage Pipeline workflow across Claude Code, Codex, and OpenClaw
+5. Sends the final customer-facing reply back via Telegram
+
+### Configuration
+
+In `lattice.config.json`, under `adapters.openclaw`:
+
+```json
+"bridge": {
+  "enabled": true,
+  "triggerPrefix": "BUG:",
+  "ackMessage": "Bug received. Investigating across agents...",
+  "workflowName": "Bug Triage Pipeline"
+}
+```
+
+All fields are optional with sensible defaults. Set `enabled: false` to disable.
+
+### Prerequisites
+
+- OpenClaw gateway must be running with Telegram channel configured
+- Both `OPENCLAW_GATEWAY_TOKEN` and `OPENCLAW_DEVICE_TOKEN` must be set
+- The Bug Triage Pipeline workflow must be seeded (it is by default from `workflows/bug-triage.json`)
+
 ## Quick reference
 
 ```bash
