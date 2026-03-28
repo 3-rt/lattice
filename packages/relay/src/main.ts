@@ -181,7 +181,9 @@ async function loadAdapters() {
 
             if (!bugTriageWf) {
               console.log("  \u26A0 Bridge: Bug Triage workflow not found, skipping");
-              await adapter.sendToSession(message.sessionKey, "Sorry, the bug triage workflow is not configured.");
+              if (message.from && message.channel !== "unknown") {
+                await adapter.sendDirectToChannel(message.from, message.channel, "Sorry, the bug triage workflow is not configured.");
+              }
               return;
             }
 
@@ -196,7 +198,11 @@ async function loadAdapters() {
                 ?? composeOutput?.artifacts?.[0]?.parts?.[0]?.text
                 ?? "We investigated your bug report but couldn't generate a summary. Our team will follow up.";
 
-              await adapter.sendToSession(message.sessionKey, replyText);
+              if (message.from && message.channel !== "unknown") {
+                await adapter.sendDirectToChannel(message.from, message.channel, replyText);
+              } else {
+                await adapter.sendToSession(message.sessionKey, replyText);
+              }
 
               bus.emit({
                 type: "message:sent",
@@ -210,10 +216,12 @@ async function loadAdapters() {
             } catch (err) {
               const errorMsg = err instanceof Error ? err.message : String(err);
               console.log(`  \u2717 Bridge: workflow failed \u2014 ${errorMsg}`);
-              await adapter.sendToSession(
-                message.sessionKey,
-                "We hit an issue investigating your bug. Our team has been notified."
-              ).catch(() => {});
+              const fallback = "We hit an issue investigating your bug. Our team has been notified.";
+              if (message.from && message.channel !== "unknown") {
+                await adapter.sendDirectToChannel(message.from, message.channel, fallback).catch(() => {});
+              } else {
+                await adapter.sendToSession(message.sessionKey, fallback).catch(() => {});
+              }
             }
           });
 

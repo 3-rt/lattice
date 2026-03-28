@@ -23,6 +23,8 @@ export interface InboundMessage {
   sessionKey: string;
   sender: string;
   channel: string;
+  /** Channel-qualified target for replies, e.g. "telegram:7098330193" */
+  from: string;
 }
 
 export type InboundHandler = (message: InboundMessage) => void;
@@ -431,12 +433,22 @@ class OpenClawGatewayClient {
     await this.request("chat.abort", { sessionKey });
   }
 
-  /** Send a message to a session. If deliver=true, push it through the originating channel (e.g., Telegram). */
-  async sendMessage(sessionKey: string, message: string, deliver: boolean): Promise<void> {
+  /** Send a message to a session (agent-oriented, no channel delivery). */
+  async sendMessage(sessionKey: string, message: string): Promise<void> {
     await this.request("chat.send", {
       sessionKey,
       message,
-      deliver,
+      deliver: false,
+      idempotencyKey: randomUUID(),
+    });
+  }
+
+  /** Send a message directly to a channel target (e.g. Telegram user). */
+  async sendDirect(to: string, channel: string, message: string): Promise<void> {
+    await this.request("send", {
+      message,
+      to,
+      channel,
       idempotencyKey: randomUUID(),
     });
   }
@@ -470,6 +482,7 @@ function buildPrompt(task: Task, promptPrefix: string): string {
 export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter & {
   onInboundMessage(handler: InboundHandler): void;
   sendToSession(sessionKey: string, text: string): Promise<void>;
+  sendDirectToChannel(to: string, channel: string, text: string): Promise<void>;
 } {
   const wsUrl = toWsUrl(config.gatewayUrl);
   const { gatewayToken, deviceToken, deviceIdentity } = config;
@@ -501,18 +514,22 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter & 
 
       const sessionKey = payload.sessionKey as string;
       const session = payload.session as Record<string, unknown> | undefined;
-      const channel = (session?.origin as Record<string, unknown>)?.provider as string ?? "unknown";
+      const origin = session?.origin as Record<string, unknown> | undefined;
+      const channel = (origin?.provider as string) ?? "unknown";
+      const from = (origin?.from as string) ?? "";
       const sender = extractSenderName(session);
       const bugText = userText.slice(triggerPrefix.length).trim();
 
-      // Abort auto-response and send ack
+      // Abort auto-response and send ack directly to channel
       gw.abortSession(sessionKey).catch(() => {});
-      gw.sendMessage(sessionKey, ackMessage, true).catch(() => {});
+      if (from && channel !== "unknown") {
+        gw.sendDirect(from, channel, ackMessage).catch(() => {});
+      }
 
       // Notify registered handlers
       for (const handler of inboundHandlers) {
         try {
-          handler({ text: bugText, sessionKey, sender, channel });
+          handler({ text: bugText, sessionKey, sender, channel, from });
         } catch { /* handler errors should not crash the bridge */ }
       }
     });
@@ -662,7 +679,11 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter & 
     },
     async sendToSession(sessionKey: string, text: string): Promise<void> {
       const gw = await getClient();
-      await gw.sendMessage(sessionKey, text, true);
+      await gw.sendMessage(sessionKey, text);
+    },
+    async sendDirectToChannel(to: string, channel: string, text: string): Promise<void> {
+      const gw = await getClient();
+      await gw.sendDirect(to, channel, text);
     },
   });
 }
