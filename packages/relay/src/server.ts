@@ -143,7 +143,8 @@ export function createApp({ db, registry, taskManager, bus, workflowEngine }: Se
       if (!workflowEngine) { res.status(500).json({ error: "Workflow engine not configured" }); return; }
       const wf = db.getWorkflow(req.params.id);
       if (!wf) { res.status(404).json({ error: "Workflow not found" }); return; }
-      const result = await workflowEngine.runWorkflow(req.params.id);
+      const initialContext = req.body?.context as Record<string, string> | undefined;
+      const result = await workflowEngine.runWorkflow(req.params.id, initialContext);
       res.json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

@@ -306,6 +306,73 @@ describe("WorkflowEngine", () => {
     expect(dbRun!.status).toBe("failed");
   });
 
+  it("should resolve template placeholders from initialContext on root nodes", async () => {
+    let capturedTexts: string[] = [];
+    (taskManager.createTask as ReturnType<typeof vi.fn>).mockImplementation(async (text: string) => {
+      capturedTexts.push(text);
+      return {
+        id: `task-${capturedTexts.length}`,
+        status: "submitted",
+        artifacts: [],
+        history: [{ role: "user", parts: [{ type: "text", text }] }],
+        metadata: { createdAt: "", updatedAt: "", assignedAgent: "", routingReason: "", latencyMs: 0 },
+      };
+    });
+
+    const engine = createWorkflowEngine(db, taskManager, bus);
+    const definition: WorkflowDefinition = {
+      nodes: [
+        { id: "n1", type: "agent-task", label: "Triage", config: { agent: "auto", taskTemplate: "Triage this bug: {{userInput}}" } },
+      ],
+      edges: [],
+    };
+    db.insertWorkflow("wf-ctx", "With Context", definition as unknown as Record<string, unknown>);
+
+    const run = await engine.runWorkflow("wf-ctx", { userInput: "hello from initial context" });
+
+    expect(run.status).toBe("completed");
+    expect(capturedTexts[0]).toBe("Triage this bug: hello from initial context");
+  });
+
+  it("should not override edge-mapped data with initialContext", async () => {
+    let capturedTexts: string[] = [];
+    (taskManager.createTask as ReturnType<typeof vi.fn>).mockImplementation(async (text: string) => {
+      capturedTexts.push(text);
+      return {
+        id: `task-${capturedTexts.length}`,
+        status: "submitted",
+        artifacts: [],
+        history: [{ role: "user", parts: [{ type: "text", text }] }],
+        metadata: { createdAt: "", updatedAt: "", assignedAgent: "", routingReason: "", latencyMs: 0 },
+      };
+    });
+    (taskManager.executeTask as ReturnType<typeof vi.fn>).mockImplementation(async (taskId: string) => ({
+      id: taskId,
+      status: "completed",
+      artifacts: [{ name: "output", parts: [{ type: "text", text: "edge-provided value" }] }],
+      history: [],
+      metadata: { createdAt: "", updatedAt: "", assignedAgent: "mock", routingReason: "", latencyMs: 50 },
+    }));
+
+    const engine = createWorkflowEngine(db, taskManager, bus);
+    const definition: WorkflowDefinition = {
+      nodes: [
+        { id: "n1", type: "agent-task", label: "Step 1", config: { agent: "auto", taskTemplate: "first step" } },
+        { id: "n2", type: "agent-task", label: "Step 2", config: { agent: "auto", taskTemplate: "Got: {{report}}" } },
+      ],
+      edges: [
+        { source: "n1", target: "n2", dataMapping: { "artifacts[0].parts[0].text": "report" } },
+      ],
+    };
+    db.insertWorkflow("wf-ctx-nooverride", "No Override", definition as unknown as Record<string, unknown>);
+
+    const run = await engine.runWorkflow("wf-ctx-nooverride", { report: "should be ignored" });
+
+    expect(run.status).toBe("completed");
+    // Edge-mapped data takes precedence over initialContext
+    expect(capturedTexts[1]).toBe("Got: edge-provided value");
+  });
+
   it("should route to explicit agent when config.agent is not auto", async () => {
     const engine = createWorkflowEngine(db, taskManager, bus);
     const definition: WorkflowDefinition = {

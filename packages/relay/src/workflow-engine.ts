@@ -21,7 +21,7 @@ export interface WorkflowRunResult {
 }
 
 export interface LatticeWorkflowEngine {
-  runWorkflow(workflowId: string): Promise<WorkflowRunResult>;
+  runWorkflow(workflowId: string, initialContext?: Record<string, string>): Promise<WorkflowRunResult>;
 }
 
 export function createWorkflowEngine(
@@ -33,7 +33,8 @@ export function createWorkflowEngine(
     node: WorkflowNode,
     context: WorkflowContext,
     runId: string,
-    def: WorkflowDefinition
+    def: WorkflowDefinition,
+    initialContext?: Record<string, string>
   ): Promise<NodeOutput> {
     eventBus.emit({ type: "workflow:step", runId, stepId: node.id, status: "working" });
 
@@ -61,6 +62,15 @@ export function createWorkflowEngine(
         }
       }
 
+      // Merge initial context so root nodes can resolve placeholders
+      if (initialContext) {
+        for (const [key, value] of Object.entries(initialContext)) {
+          if (!(key in mappedData)) {
+            mappedData[key] = value;
+          }
+        }
+      }
+
       // Resolve template
       const taskText = resolveTemplate(config.taskTemplate, mappedData);
 
@@ -85,7 +95,7 @@ export function createWorkflowEngine(
   }
 
   return {
-    async runWorkflow(workflowId: string): Promise<WorkflowRunResult> {
+    async runWorkflow(workflowId: string, initialContext?: Record<string, string>): Promise<WorkflowRunResult> {
       const wfRow = db.getWorkflow(workflowId);
       if (!wfRow) throw new Error(`Workflow "${workflowId}" not found`);
 
@@ -124,7 +134,7 @@ export function createWorkflowEngine(
             }
 
             try {
-              const output = await executeNode(node, context, runId, def);
+              const output = await executeNode(node, context, runId, def, initialContext);
               context[nodeId] = output;
             } catch (err) {
               context[nodeId] = {
