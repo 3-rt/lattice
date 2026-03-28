@@ -1,0 +1,58 @@
+{
+  "name": "Bug Triage Pipeline",
+  "description": "Investigate a bug report across agents: Claude Code diagnoses, Codex reviews, OpenClaw composes a customer-facing reply.",
+  "definition": {
+    "nodes": [
+      {
+        "id": "investigate",
+        "type": "agent-task",
+        "label": "Investigate Bug",
+        "config": {
+          "agent": "claude-code",
+          "taskTemplate": "Investigate this bug report and suggest a fix. Be concise — respond in 2-3 paragraphs max.\n\nBug report: {{bugReport}}"
+        }
+      },
+      {
+        "id": "review",
+        "type": "agent-task",
+        "label": "Review Fix",
+        "config": {
+          "agent": "codex",
+          "taskTemplate": "Review this bug investigation and proposed fix for correctness. Note any issues. Be concise — respond in 1-2 paragraphs.\n\nInvestigation:\n{{investigation}}"
+        }
+      },
+      {
+        "id": "compose",
+        "type": "agent-task",
+        "label": "Compose Customer Reply",
+        "config": {
+          "agent": "openclaw",
+          "taskTemplate": "Write a brief, friendly customer-facing message (3-4 sentences) summarizing what we found and the fix. Do not include technical details — keep it approachable.\n\nInvestigation: {{investigation}}\n\nReview: {{review}}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "investigate",
+        "target": "review",
+        "dataMapping": {
+          "artifacts[0].parts[0].text": "investigation"
+        }
+      },
+      {
+        "source": "investigate",
+        "target": "compose",
+        "dataMapping": {
+          "artifacts[0].parts[0].text": "investigation"
+        }
+      },
+      {
+        "source": "review",
+        "target": "compose",
+        "dataMapping": {
+          "artifacts[0].parts[0].text": "review"
+        }
+      }
+    ]
+  }
+}
