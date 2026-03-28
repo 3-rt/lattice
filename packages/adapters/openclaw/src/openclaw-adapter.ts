@@ -18,6 +18,21 @@ export interface DeviceIdentity {
   platform: string;
 }
 
+export interface InboundMessage {
+  text: string;
+  sessionKey: string;
+  sender: string;
+  channel: string;
+}
+
+export type InboundHandler = (message: InboundMessage) => void;
+
+export interface BridgeConfig {
+  enabled?: boolean;
+  triggerPrefix?: string;
+  ackMessage?: string;
+}
+
 export interface OpenClawConfig {
   gatewayUrl: string;
   /** Static gateway auth token (authenticates the WebSocket connection). */
@@ -31,6 +46,7 @@ export interface OpenClawConfig {
    * available tools/integrations. Set to "" to disable.
    */
   promptPrefix?: string;
+  bridge?: BridgeConfig;
 }
 
 function hasRequiredDeviceAuth(config: Pick<OpenClawConfig, "gatewayToken" | "deviceToken" | "deviceIdentity">): boolean {
@@ -108,6 +124,27 @@ function extractText(message: unknown): string | null {
     return texts.length > 0 ? texts.join("") : null;
   }
   return null;
+}
+
+/**
+ * Strip OpenClaw metadata preamble from inbound channel messages.
+ * Telegram messages arrive wrapped with "Conversation info" and "Sender" JSON blocks.
+ * Strategy: find the last closing triple-backtick, take everything after it.
+ */
+function extractUserText(raw: string): string {
+  const lastFence = raw.lastIndexOf("```");
+  if (lastFence === -1) return raw.trim();
+  const afterFence = raw.slice(lastFence + 3).trim();
+  return afterFence || raw.trim();
+}
+
+/** Extract sender display name from session origin metadata. */
+function extractSenderName(session: Record<string, unknown> | undefined): string {
+  if (!session) return "Unknown";
+  const origin = session.origin as Record<string, unknown> | undefined;
+  if (!origin) return "Unknown";
+  const label = origin.label;
+  return typeof label === "string" ? label : "Unknown";
 }
 
 // ---------------------------------------------------------------------------
@@ -320,6 +357,10 @@ class OpenClawGatewayClient {
               resolve: () => {
                 clearTimeout(timeout);
                 this.connected = true;
+                // Auto-subscribe to session events for bridge functionality
+                this.subscribeToSessions().catch(() => {
+                  // Non-fatal — bridge features won't work but task execution still will
+                });
                 resolve();
               },
               reject: (err) => {
@@ -380,6 +421,26 @@ class OpenClawGatewayClient {
     };
   }
 
+  /** Subscribe to session lifecycle and message events. */
+  async subscribeToSessions(): Promise<void> {
+    await this.request("sessions.subscribe", {});
+  }
+
+  /** Abort the active response on a session. */
+  async abortSession(sessionKey: string): Promise<void> {
+    await this.request("chat.abort", { sessionKey });
+  }
+
+  /** Send a message to a session. If deliver=true, push it through the originating channel (e.g., Telegram). */
+  async sendMessage(sessionKey: string, message: string, deliver: boolean): Promise<void> {
+    await this.request("chat.send", {
+      sessionKey,
+      message,
+      deliver,
+      idempotencyKey: randomUUID(),
+    });
+  }
+
   /** Close the WebSocket connection. */
   close(): void {
     this.ws?.close();
@@ -406,12 +467,56 @@ function buildPrompt(task: Task, promptPrefix: string): string {
   return promptPrefix + userText;
 }
 
-export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
+export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter & {
+  onInboundMessage(handler: InboundHandler): void;
+  sendToSession(sessionKey: string, text: string): Promise<void>;
+} {
   const wsUrl = toWsUrl(config.gatewayUrl);
   const { gatewayToken, deviceToken, deviceIdentity } = config;
   const hasDeviceAuth = hasRequiredDeviceAuth(config);
   const promptPrefix = config.promptPrefix ?? DEFAULT_PROMPT_PREFIX;
+  const inboundHandlers: InboundHandler[] = [];
+  const bridgeConfig = config.bridge ?? {};
+  const bridgeEnabled = bridgeConfig.enabled !== false;
+  const triggerPrefix = (bridgeConfig.triggerPrefix ?? "BUG:").toUpperCase();
+  const ackMessage = bridgeConfig.ackMessage ?? "Bug received. Investigating across agents...";
   let client: OpenClawGatewayClient | null = null;
+
+  function setupBridge(gw: OpenClawGatewayClient) {
+    gw.onEvent((event) => {
+      if (event.event !== "session.message") return;
+      const payload = event.payload;
+      if (!payload) return;
+
+      const message = payload.message as Record<string, unknown> | undefined;
+      if (!message || message.role !== "user") return;
+
+      // Extract text from content array
+      const content = message.content as Array<Record<string, unknown>> | undefined;
+      const rawText = content?.[0]?.text;
+      if (typeof rawText !== "string") return;
+
+      const userText = extractUserText(rawText);
+      if (!userText.toUpperCase().startsWith(triggerPrefix)) return;
+
+      const sessionKey = payload.sessionKey as string;
+      const session = payload.session as Record<string, unknown> | undefined;
+      const channel = (session?.origin as Record<string, unknown>)?.provider as string ?? "unknown";
+      const sender = extractSenderName(session);
+      const bugText = userText.slice(triggerPrefix.length).trim();
+
+      // Abort auto-response and send ack
+      gw.abortSession(sessionKey).catch(() => {});
+      gw.sendMessage(sessionKey, ackMessage, true).catch(() => {});
+
+      // Notify registered handlers
+      for (const handler of inboundHandlers) {
+        try {
+          handler({ text: bugText, sessionKey, sender, channel });
+        } catch { /* handler errors should not crash the bridge */ }
+      }
+    });
+  }
 
   async function getClient(): Promise<OpenClawGatewayClient> {
     if (!hasDeviceAuth) {
@@ -423,6 +528,9 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
     client?.close();
     client = new OpenClawGatewayClient(wsUrl, gatewayToken, deviceToken, deviceIdentity);
     await client.connect();
+    if (bridgeEnabled) {
+      setupBridge(client);
+    }
     return client;
   }
 
@@ -548,5 +656,13 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter {
     },
   };
 
-  return adapter;
+  return Object.assign(adapter, {
+    onInboundMessage(handler: InboundHandler): void {
+      inboundHandlers.push(handler);
+    },
+    async sendToSession(sessionKey: string, text: string): Promise<void> {
+      const gw = await getClient();
+      await gw.sendMessage(sessionKey, text, true);
+    },
+  });
 }
