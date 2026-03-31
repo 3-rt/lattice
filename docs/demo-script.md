@@ -54,15 +54,18 @@ Navigate to Live Flow. The relay is in the center, agents around it.
 
 **Type in the dispatch bar:**
 ```
-Look at the lattice project and suggest 3 improvements to the README
+Review packages/relay/src/router.ts and identify any potential issues with the Thompson Sampling implementation — check for edge cases in the Beta distribution sampling or routing fairness
 ```
 
-Watch it route to an agent. The edge glows, a particle travels along it, the agent node lights up blue while working, then turns green on completion. Events stream into the log on the right.
+Watch it route to Claude Code. The edge glows, a particle travels along it, the agent node lights up blue while working, then turns green on completion. Events stream into the log on the right.
 
-**While it's running (~10-20s), narrate:**
-- "The router analyzed the task and matched it to [agent] based on skill tags"
+**While it's running (~15-30s), narrate:**
+- "The router matched this to Claude Code based on skill tags — code review, analysis"
+- "Claude Code has access to the full codebase and is actually reading the source right now"
 - "This is all real-time over Server-Sent Events — no polling"
-- "The routing uses Thompson Sampling — a Bayesian multi-armed bandit that learns which agent is best for which category"
+- "The routing itself uses Thompson Sampling — so a Bayesian algorithm is deciding which agent handles tasks, and Claude Code is being asked to audit that same algorithm"
+
+**When it completes**, click the task row in the log to show the full output. Point out that it's a real code review of real code — not a canned response.
 
 ## 3. Telegram Bridge — the big moment
 
