@@ -132,6 +132,7 @@ All types exported from `@lattice/adapter-base`.
 ## Claude Code Adapter
 
 - Spawns `claude` CLI via child process with `--print --output-format json --no-session-persistence --model <model> --max-turns 10`
+- Periodic health checks are lightweight and only run `claude --version`; authentication errors surface when a real Claude task executes
 - Do NOT use `--bare` flag — it disables OAuth/keychain auth and only accepts `ANTHROPIC_API_KEY`
 - Model defaults to `sonnet`; override via `CLAUDE_MODEL` env var
 - The adapter dist must be rebuilt (`npm run build --workspace=packages/adapters/claude-code`) after source changes — the relay imports from `dist/`, not `src/`

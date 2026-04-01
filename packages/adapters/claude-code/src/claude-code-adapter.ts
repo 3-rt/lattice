@@ -281,21 +281,10 @@ export function createClaudeCodeAdapter(): LatticeAdapter {
         return { ok: false, reason: "Claude CLI not found. Install it with: npm install -g @anthropic-ai/claude-code" };
       }
 
-      // Verify auth by running a minimal prompt
-      try {
-        const res = await runClaude("say ok");
-        if (res.is_error) {
-          const msg = res.result ?? res.error ?? "unknown error";
-          if (/not logged in|login|authenticate/i.test(msg)) {
-            return { ok: false, reason: "Claude CLI is not logged in. Run 'claude' and complete the login flow." };
-          }
-          return { ok: false, reason: `Claude CLI error: ${msg}` };
-        }
-        return { ok: true };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return { ok: false, reason: `Claude CLI error: ${msg}` };
-      }
+      // Keep periodic health checks lightweight. Authentication is validated
+      // during real task execution so the relay does not burn Claude usage
+      // every time the registry polls adapter status.
+      return { ok: true };
     },
   };
 }

@@ -175,21 +175,18 @@ describe("ClaudeCodeAdapter", () => {
   });
 
   describe("healthCheck", () => {
-    it("should return { ok: true } when claude binary is found and authenticated", async () => {
-      // Lazy creation so nextTick fires after listeners attach
-      const responses = [
-        () => fakeProcess("1.0.0"),                               // --version
-        () => fakeProcess(JSON.stringify({ result: "ok" })),      // auth check
-      ];
-      let callIndex = 0;
-      mockSpawn.mockImplementation(() => responses[callIndex++]!());
+    it("should return { ok: true } when claude binary is found", async () => {
+      mockSpawn.mockReturnValue(fakeProcess("1.0.0"));
+
       const healthy = await adapter.healthCheck();
+
       expect(healthy).toEqual({ ok: true });
       expect(mockSpawn).toHaveBeenCalledWith(
         "claude",
         ["--version"],
         expect.any(Object),
       );
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
     });
 
     it("should return { ok: false, reason } when claude binary is not found", async () => {
@@ -198,15 +195,18 @@ describe("ClaudeCodeAdapter", () => {
       expect(healthy).toEqual({ ok: false, reason: expect.stringContaining("not found") });
     });
 
-    it("should return { ok: false, reason } when claude is not logged in", async () => {
-      const responses = [
-        () => fakeProcess("1.0.0"),
-        () => fakeProcess(JSON.stringify({ is_error: true, result: "Not logged in · Please run /login" })),
-      ];
-      let callIndex = 0;
-      mockSpawn.mockImplementation(() => responses[callIndex++]!());
+    it("should not run a Claude prompt during health checks", async () => {
+      mockSpawn.mockReturnValue(fakeProcess("1.0.0"));
+
       const healthy = await adapter.healthCheck();
-      expect(healthy).toEqual({ ok: false, reason: expect.stringContaining("not logged in") });
+
+      expect(healthy).toEqual({ ok: true });
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "claude",
+        ["--version"],
+        expect.any(Object),
+      );
     });
   });
 

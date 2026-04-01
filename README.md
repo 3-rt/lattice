@@ -66,6 +66,8 @@ The relay and dashboard run without any external agents. To actually execute tas
 
 OpenClaw requires the most setup — see [`docs/setup-openclaw.md`](docs/setup-openclaw.md) for the full guide.
 
+Claude health checks are intentionally lightweight: the relay polls `claude --version` during periodic health checks and only verifies auth when a real task is routed to the Claude adapter. If you do not want Lattice to invoke Claude at all, disable the adapter in `lattice.config.json`.
+
 Disable any adapter in `lattice.config.json` by setting `"enabled": false`.
 
 ## CLI
