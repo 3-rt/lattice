@@ -41,5 +41,6 @@ target-version = "py312"
 
 [dependency-groups]
 dev = [
+    "aiohttp>=3.13.5",
     "respx>=0.23.1",
 ]

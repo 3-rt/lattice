@@ -1,5 +1,6 @@
 import os
 import subprocess
+
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -27,10 +28,11 @@ def database_url(postgres_container):
     )
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def set_env(database_url):
     os.environ["INSIGHTS_DATABASE_URL"] = database_url
     from insights.config import get_settings
+
     get_settings.cache_clear()
     yield
 
@@ -54,12 +56,18 @@ def _run_migrations(database_url, set_env):
 
 @pytest.fixture
 async def migrated_engine(database_url, _run_migrations):
+    import insights.db as db
+
+    db._sessionmaker = None
+    db._engine = None
     engine = create_async_engine(database_url)
     yield engine
     await engine.dispose()
+    db._sessionmaker = None
+    db._engine = None
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 async def clean_tables(migrated_engine):
     async with migrated_engine.begin() as conn:
         await conn.execute(
