@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Shell } from "./components/layout/shell.tsx";
 import { AgentOverview } from "./pages/agent-overview.tsx";
+import { InsightsPage } from "./pages/insights.tsx";
 import { LiveFlow } from "./pages/live-flow.tsx";
 import { TasksPage } from "./pages/tasks-page.tsx";
 import { Workflows } from "./pages/workflows.tsx";
@@ -14,6 +15,7 @@ export function App() {
           <Route path="/flow" element={<LiveFlow />} />
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/workflows" element={<Workflows />} />
+          <Route path="/insights" element={<InsightsPage />} />
         </Routes>
       </Shell>
     </BrowserRouter>
