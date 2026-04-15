@@ -128,6 +128,12 @@ lattice/
 └── package.json            # npm workspaces root
 ```
 
+## Insights (analytics service)
+
+Python/FastAPI service that ingests relay events into TimescaleDB and serves
+analytics to the dashboard. See `insights/README.md` for details; the dashboard's
+Insights tab consumes it at `http://localhost:8000`.
+
 ## Configuration
 
 All runtime config lives in [`lattice.config.json`](./lattice.config.json):
