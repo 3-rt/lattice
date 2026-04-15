@@ -59,10 +59,14 @@ def upgrade() -> None:
         "SELECT create_hypertable('agent_status_history', 'ts', if_not_exists => TRUE)"
     )
 
-    # Continuous aggregate: tasks_by_minute
+    # Plain materialized view: tasks_by_minute
+    # Note: Originally intended as a Timescale continuous aggregate, but the
+    # `tasks` source table is not a hypertable (it's keyed by task id, not time),
+    # and Timescale requires continuous aggregates to source from a hypertable.
+    # Falling back to a plain materialized view; refresh it on a schedule at the
+    # application layer (or via pg_cron) instead of add_continuous_aggregate_policy.
     op.execute("""
-        CREATE MATERIALIZED VIEW tasks_by_minute
-        WITH (timescaledb.continuous) AS
+        CREATE MATERIALIZED VIEW tasks_by_minute AS
         SELECT
             time_bucket('1 minute', created_at) AS minute,
             status,
@@ -74,17 +78,12 @@ def upgrade() -> None:
         GROUP BY minute, status, assigned_agent
         WITH NO DATA
     """)
-    op.execute("""
-        SELECT add_continuous_aggregate_policy('tasks_by_minute',
-            start_offset => INTERVAL '7 days',
-            end_offset => INTERVAL '1 minute',
-            schedule_interval => INTERVAL '1 minute')
-    """)
 
-    # Continuous aggregate: agent_latency_1m
+    # Plain materialized view: agent_latency_1m
+    # Same rationale as above plus: percentile_cont is not supported inside a
+    # Timescale continuous aggregate.
     op.execute("""
-        CREATE MATERIALIZED VIEW agent_latency_1m
-        WITH (timescaledb.continuous) AS
+        CREATE MATERIALIZED VIEW agent_latency_1m AS
         SELECT
             time_bucket('1 minute', created_at) AS minute,
             assigned_agent AS agent,
@@ -95,12 +94,6 @@ def upgrade() -> None:
         WHERE latency_ms IS NOT NULL AND assigned_agent IS NOT NULL
         GROUP BY minute, assigned_agent
         WITH NO DATA
-    """)
-    op.execute("""
-        SELECT add_continuous_aggregate_policy('agent_latency_1m',
-            start_offset => INTERVAL '7 days',
-            end_offset => INTERVAL '1 minute',
-            schedule_interval => INTERVAL '1 minute')
     """)
 
 
