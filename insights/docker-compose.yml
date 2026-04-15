@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: insights
+      POSTGRES_PASSWORD: insights
+      POSTGRES_DB: insights
+    ports:
+      - "5433:5432"
+    volumes:
+      - insights_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "insights"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  insights:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      INSIGHTS_DATABASE_URL: postgresql+asyncpg://insights:insights@postgres:5432/insights
+      INSIGHTS_RELAY_URL: http://host.docker.internal:3100
+      INSIGHTS_CORS_ORIGINS: http://localhost:3200
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  insights_pgdata:
