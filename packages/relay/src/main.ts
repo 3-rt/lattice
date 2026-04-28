@@ -6,6 +6,7 @@ import { createEventBus } from "./event-bus.js";
 import { createRegistry } from "./registry.js";
 import { createRouterFromConfig } from "./router.js";
 import { createTaskManager } from "./task-manager.js";
+import { createConversationManager } from "./conversation-manager.js";
 import { createApp } from "./server.js";
 import { createWorkflowEngine } from "./workflow-engine.js";
 import { seedWorkflows } from "./seed-workflows.js";
@@ -43,8 +44,9 @@ const router = createRouterFromConfig(registry, db, {
   strategy: routingConfig.strategy ?? "simple",
 });
 const taskManager = createTaskManager(db, bus, registry, router);
+const conversationManager = createConversationManager(db, taskManager);
 const workflowEngine = createWorkflowEngine(db, taskManager, bus);
-const app = createApp({ db, registry, taskManager, bus, workflowEngine });
+const app = createApp({ db, registry, taskManager, bus, workflowEngine, conversationManager });
 
 // Load demo adapters (mock agents, no external dependencies)
 async function loadDemoAdapters() {

@@ -8,6 +8,7 @@ import type { LatticeTaskManager } from "./task-manager.js";
 import type { LatticeEventBus } from "./event-bus.js";
 import type { LatticeWorkflowEngine } from "./workflow-engine.js";
 import type { WorkflowDefinition } from "./workflow-types.js";
+import type { LatticeConversationManager } from "./conversation-manager.js";
 
 const VALID_NODE_TYPES = new Set(["agent-task", "condition"]);
 
@@ -46,9 +47,10 @@ interface ServerDeps {
   taskManager: LatticeTaskManager;
   bus: LatticeEventBus;
   workflowEngine?: LatticeWorkflowEngine;
+  conversationManager?: LatticeConversationManager;
 }
 
-export function createApp({ db, registry, taskManager, bus, workflowEngine }: ServerDeps) {
+export function createApp({ db, registry, taskManager, bus, workflowEngine, conversationManager }: ServerDeps) {
   const app = express();
   app.use(cors({ origin: /localhost/ }));
   app.use(express.json());
@@ -118,6 +120,53 @@ export function createApp({ db, registry, taskManager, bus, workflowEngine }: Se
 
   app.get("/api/routing/stats", (_req, res) => {
     res.json(db.getRoutingStats());
+  });
+
+  app.get("/api/conversations", (_req, res) => {
+    if (!conversationManager) { res.status(500).json({ error: "Conversation manager not configured" }); return; }
+    res.json(conversationManager.listConversations());
+  });
+
+  app.post("/api/conversations", (req, res) => {
+    if (!conversationManager) { res.status(500).json({ error: "Conversation manager not configured" }); return; }
+    const conversation = conversationManager.createConversation(req.body?.title);
+    res.status(201).json(conversation);
+  });
+
+  app.get("/api/conversations/:id", (req, res) => {
+    if (!conversationManager) { res.status(500).json({ error: "Conversation manager not configured" }); return; }
+    const conversation = conversationManager.getConversation(req.params.id);
+    if (!conversation) { res.status(404).json({ error: "Conversation not found" }); return; }
+    res.json(conversation);
+  });
+
+  app.get("/api/conversations/:id/messages", (req, res) => {
+    if (!conversationManager) { res.status(500).json({ error: "Conversation manager not configured" }); return; }
+    const conversation = conversationManager.getConversation(req.params.id);
+    if (!conversation) { res.status(404).json({ error: "Conversation not found" }); return; }
+    res.json(conversationManager.listMessages(req.params.id));
+  });
+
+  app.post("/api/conversations/:id/messages", async (req, res) => {
+    if (!conversationManager) { res.status(500).json({ error: "Conversation manager not configured" }); return; }
+    try {
+      const text = typeof req.body?.text === "string" ? req.body.text : "";
+      if (!text.trim()) { res.status(400).json({ error: "text is required" }); return; }
+      const result = await conversationManager.dispatchMessage({
+        conversationId: req.params.id,
+        text,
+        agent: req.body?.agent,
+        execute: req.body?.execute,
+      });
+      res.status(201).json(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/Conversation ".+" not found/.test(message)) {
+        res.status(404).json({ error: "Conversation not found" });
+        return;
+      }
+      res.status(500).json({ error: message });
+    }
   });
 
   app.get("/api/events", createSSEHandler(bus));

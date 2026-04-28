@@ -230,6 +230,24 @@ MC4CAQAwBQYDK2VwBCIEIO0uohsEiL/KZ8nfdXbra+XUl3Bd6mVTRu6YQ8VE3d2r
       );
     });
 
+    it("should use a conversation session key when one is provided", async () => {
+      let observedSessionKey = "";
+      mockGateway = createMockGateway({
+        onChatSend: (params) => {
+          observedSessionKey = params.sessionKey as string;
+          return { responseText: "Continuing conversation" };
+        },
+      });
+
+      const adapter = createAdapter(mockGateway.port);
+      const task = makeTask("continue debugging");
+      task.metadata.conversationId = "conv-1";
+      task.metadata.openclawSessionKey = "lattice-conv-conv-1";
+      await adapter.executeTask(task);
+
+      expect(observedSessionKey).toBe("lattice-conv-conv-1");
+    });
+
     it("should handle chat errors from gateway", async () => {
       mockGateway = createMockGateway({
         onChatSend: () => ({ error: "Agent is busy" }),
