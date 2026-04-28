@@ -18,8 +18,11 @@
     "demo": "bash scripts/demo.sh"
   },
   "devDependencies": {
+    "tsup": "^8.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0",
-    "tsup": "^8.0.0"
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.0"
   }
 }
