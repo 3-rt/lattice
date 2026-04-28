@@ -1,4 +1,4 @@
-import { execFile } from "child_process";
+import { spawn } from "child_process";
 import type {
   LatticeAdapter,
   AgentCard,
@@ -55,18 +55,25 @@ function runCodex(
   args: string[]
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    execFile(
-      codexPath,
-      args,
-      { timeout: 5 * 60 * 1000 },
-      (err, stdout, stderr) => {
-        if (err) {
-          reject({ error: err, stdout: stdout ?? "", stderr: stderr ?? "" });
-        } else {
-          resolve({ stdout: stdout ?? "", stderr: stderr ?? "" });
-        }
-      }
-    );
+    // stdin must be 'ignore' — codex CLI hangs reading stdin if it's left open as a pipe.
+    const child = spawn(codexPath, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => (stdout += d.toString()));
+    child.stderr.on("data", (d) => (stderr += d.toString()));
+    const timeout = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject({ error: new Error("Codex timed out"), stdout, stderr });
+    }, 5 * 60 * 1000);
+    child.on("error", (err) => {
+      clearTimeout(timeout);
+      reject({ error: err, stdout, stderr });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timeout);
+      if (code === 0) resolve({ stdout, stderr });
+      else reject({ error: new Error(`Codex exited with code ${code}`), stdout, stderr });
+    });
   });
 }
 
