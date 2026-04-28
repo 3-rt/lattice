@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Activity, Layout, ListTodo, GitBranch, BarChart3 } from "lucide-react";
+import { Activity, Layout, ListTodo, GitBranch, BarChart3, MessagesSquare } from "lucide-react";
 import { useLatticeStore } from "../../store/lattice-store.ts";
 import { clsx } from "clsx";
 
@@ -11,6 +11,7 @@ const navItems: Array<{
 }> = [
   { to: "/", icon: Layout, label: "Agents" },
   { to: "/flow", icon: Activity, label: "Live Flow" },
+  { to: "/conversations", icon: MessagesSquare, label: "Conversations" },
   { to: "/tasks", icon: ListTodo, label: "Tasks" },
   { to: "/workflows", icon: GitBranch, label: "Workflows" },
   { to: "/insights", icon: BarChart3, label: "Insights" },
@@ -69,6 +70,8 @@ export function Sidebar() {
                   ? "Roster and dispatch"
                   : item.to === "/flow"
                     ? "Real-time activity"
+                  : item.to === "/conversations"
+                    ? "Shared agent context"
                   : item.to === "/tasks"
                       ? "History and routing"
                       : item.to === "/workflows"

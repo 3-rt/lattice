@@ -27,7 +27,34 @@ export interface TaskInfo {
     routingReason: string;
     latencyMs: number;
     cost?: number;
+    conversationId?: string;
+    openclawSessionKey?: string;
   };
+}
+
+export interface ConversationInfo {
+  id: string;
+  title: string;
+  summary: string;
+  openclawSessionKey: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationMessageInfo {
+  id: string;
+  conversationId: string;
+  role: string;
+  content: string;
+  createdAt: string;
+  agentName?: string;
+  taskId?: string;
+}
+
+export interface ConversationDispatchResult {
+  userMessage: ConversationMessageInfo;
+  task: TaskInfo;
+  agentMessage?: ConversationMessageInfo;
 }
 
 export interface RoutingStatsRow {
@@ -128,6 +155,44 @@ export async function fetchTasks(status?: string): Promise<TaskInfo[]> {
 export async function fetchRoutingStats(): Promise<RoutingStatsRow[]> {
   const res = await fetch(`${BASE_URL}/routing/stats`);
   if (!res.ok) throw new Error(`Failed to fetch routing stats: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchConversations(): Promise<ConversationInfo[]> {
+  const res = await fetch(`${BASE_URL}/conversations`);
+  if (!res.ok) throw new Error(`Failed to fetch conversations: ${res.status}`);
+  return res.json();
+}
+
+export async function createConversation(title?: string): Promise<ConversationInfo> {
+  const res = await fetch(`${BASE_URL}/conversations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error(`Failed to create conversation: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchConversationMessages(
+  conversationId: string
+): Promise<ConversationMessageInfo[]> {
+  const res = await fetch(`${BASE_URL}/conversations/${conversationId}/messages`);
+  if (!res.ok) throw new Error(`Failed to fetch conversation messages: ${res.status}`);
+  return res.json();
+}
+
+export async function sendConversationMessage(
+  conversationId: string,
+  text: string,
+  agent?: string
+): Promise<ConversationDispatchResult> {
+  const res = await fetch(`${BASE_URL}/conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, agent, execute: true }),
+  });
+  if (!res.ok) throw new Error(`Failed to send conversation message: ${res.status}`);
   return res.json();
 }
 
