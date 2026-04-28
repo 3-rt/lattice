@@ -319,7 +319,7 @@ export function createDatabase(dbPath: string): LatticeDB {
     listConversationMessages: sqlite.prepare(`
       SELECT * FROM conversation_messages
       WHERE conversation_id = ?
-      ORDER BY created_at ASC, id ASC
+      ORDER BY created_at ASC, rowid ASC
     `),
 
     insertWorkflow: sqlite.prepare(`
