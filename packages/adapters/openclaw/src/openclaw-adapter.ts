@@ -558,7 +558,7 @@ export function createOpenClawAdapter(config: OpenClawConfig): LatticeAdapter & 
 
     async executeTask(task: Task): Promise<Task> {
       const prompt = buildPrompt(task, promptPrefix);
-      const sessionKey = `lattice-${task.id}`;
+      const sessionKey = task.metadata.openclawSessionKey ?? `lattice-${task.id}`;
       const runId = randomUUID();
 
       try {

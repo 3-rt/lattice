@@ -11,6 +11,7 @@ const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 // In-memory store for explicit agent preferences (to avoid FK constraint issues)
 const explicitAgentPrefs = new Map<string, string>();
+const taskOpenClawSessionKeys = new Map<string, string>();
 
 function translateTaskArtifacts(task: Task): Task {
   if (task.status !== "failed") return task;
@@ -58,12 +59,20 @@ function rowToTask(row: TaskRow): Task {
       cost: row.cost ?? undefined,
       workflowId: row.workflow_id ?? undefined,
       workflowStepId: row.workflow_step_id ?? undefined,
+      conversationId: row.conversation_id ?? undefined,
+      openclawSessionKey: taskOpenClawSessionKeys.get(row.id),
     },
   };
 }
 
+export interface CreateTaskOptions {
+  explicitAgent?: string;
+  conversationId?: string;
+  openclawSessionKey?: string;
+}
+
 export interface LatticeTaskManager {
-  createTask(text: string, explicitAgent?: string): Promise<Task>;
+  createTask(text: string, explicitAgentOrOptions?: string | CreateTaskOptions): Promise<Task>;
   executeTask(taskId: string): Promise<Task>;
   getTask(taskId: string): Task | undefined;
   listTasks(filter?: TaskFilter): Task[];
@@ -78,17 +87,23 @@ export function createTaskManager(
   router: LatticeRouter
 ): LatticeTaskManager {
   return {
-    async createTask(text: string, explicitAgent?: string): Promise<Task> {
+    async createTask(text: string, explicitAgentOrOptions?: string | CreateTaskOptions): Promise<Task> {
       const id = uuidv4();
+      const options: CreateTaskOptions = typeof explicitAgentOrOptions === "string"
+        ? { explicitAgent: explicitAgentOrOptions }
+        : explicitAgentOrOptions ?? {};
       const history: Message[] = [
         { role: "user", parts: [{ type: "text", text }] },
       ];
 
-      db.insertTask(id, history);
+      db.insertTask(id, history, options.conversationId);
 
       // Store explicit agent preference in memory (avoids FK constraint)
-      if (explicitAgent) {
-        explicitAgentPrefs.set(id, explicitAgent);
+      if (options.explicitAgent) {
+        explicitAgentPrefs.set(id, options.explicitAgent);
+      }
+      if (options.openclawSessionKey) {
+        taskOpenClawSessionKeys.set(id, options.openclawSessionKey);
       }
 
       const row = db.getTask(id)!;

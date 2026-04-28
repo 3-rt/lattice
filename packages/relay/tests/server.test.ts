@@ -6,6 +6,7 @@ import { createEventBus } from "../src/event-bus.js";
 import { createRegistry } from "../src/registry.js";
 import { createRouter } from "../src/router.js";
 import { createTaskManager } from "../src/task-manager.js";
+import { createConversationManager } from "../src/conversation-manager.js";
 import type { LatticeAdapter, AgentCard, Task } from "@lattice/adapter-base";
 
 function createMockAdapter(name: string, skillTags: string[]): LatticeAdapter {
@@ -40,7 +41,8 @@ describe("Server API", () => {
     registry = createRegistry(db, bus);
     const router = createRouter(registry);
     const taskManager = createTaskManager(db, bus, registry, router);
-    app = createApp({ db, registry, taskManager, bus });
+    const conversationManager = createConversationManager(db, taskManager);
+    app = createApp({ db, registry, taskManager, bus, conversationManager });
   });
 
   describe("GET /api/agents", () => {
@@ -147,6 +149,72 @@ describe("Server API", () => {
       const res = await request(app).get("/api/routing/stats");
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
+    });
+  });
+
+  describe("conversations", () => {
+    it("should create and list conversations", async () => {
+      const created = await request(app)
+        .post("/api/conversations")
+        .send({ title: "OpenClaw debugging" });
+
+      expect(created.status).toBe(201);
+      expect(created.body.title).toBe("OpenClaw debugging");
+      expect(created.body.openclawSessionKey).toContain(created.body.id);
+
+      const listed = await request(app).get("/api/conversations");
+      expect(listed.status).toBe(200);
+      expect(listed.body).toHaveLength(1);
+      expect(listed.body[0].id).toBe(created.body.id);
+    });
+
+    it("should list conversation messages", async () => {
+      const created = await request(app)
+        .post("/api/conversations")
+        .send({ title: "Debugging" });
+
+      const res = await request(app).get(`/api/conversations/${created.body.id}/messages`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it("should dispatch a conversation message through an agent", async () => {
+      registry.register(createMockAdapter("openclaw", ["message"]));
+      const created = await request(app)
+        .post("/api/conversations")
+        .send({ title: "Debugging" });
+
+      const res = await request(app)
+        .post(`/api/conversations/${created.body.id}/messages`)
+        .send({ text: "say hello", agent: "openclaw", execute: true });
+
+      expect(res.status).toBe(201);
+      expect(res.body.userMessage.content).toBe("say hello");
+      expect(res.body.task.metadata.conversationId).toBe(created.body.id);
+      expect(res.body.agentMessage.agentName).toBe("openclaw");
+      expect(res.body.agentMessage.content).toBe("done");
+    });
+
+    it("should reject empty conversation messages", async () => {
+      const created = await request(app)
+        .post("/api/conversations")
+        .send({ title: "Debugging" });
+
+      const res = await request(app)
+        .post(`/api/conversations/${created.body.id}/messages`)
+        .send({ text: "   " });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("text is required");
+    });
+
+    it("should return 404 for missing conversations", async () => {
+      const res = await request(app)
+        .post("/api/conversations/missing/messages")
+        .send({ text: "hello" });
+
+      expect(res.status).toBe(404);
     });
   });
 });

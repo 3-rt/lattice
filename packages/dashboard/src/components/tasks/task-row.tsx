@@ -132,6 +132,9 @@ export function TaskRow({ task }: TaskRowProps) {
 
               <div className="flex flex-wrap gap-4 text-xs text-[var(--text-soft)]">
                 <span>ID: {task.id}</span>
+                {task.metadata?.conversationId && (
+                  <span>Conversation: {task.metadata.conversationId.slice(0, 8)}</span>
+                )}
                 {task.metadata?.cost != null && (
                   <span>Cost: ${task.metadata.cost.toFixed(4)}</span>
                 )}

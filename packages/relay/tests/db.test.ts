@@ -134,6 +134,75 @@ describe("LatticeDB", () => {
       expect(db.listTasks({ status: "completed" })).toHaveLength(1);
       expect(db.listTasks({ status: "submitted" })).toHaveLength(1);
     });
+
+    it("should store and filter conversation-linked tasks", () => {
+      const history = [{ role: "user" as const, parts: [{ type: "text" as const, text: "continue debugging" }] }];
+
+      db.insertTask("t1", history, "conv-1");
+      db.insertTask("t2", history, "conv-2");
+
+      expect(db.getTask("t1")!.conversation_id).toBe("conv-1");
+      expect(db.listTasks({ conversation_id: "conv-1" }).map((task) => task.id)).toEqual(["t1"]);
+    });
+  });
+
+  describe("conversations", () => {
+    it("should insert and retrieve a conversation", () => {
+      db.insertConversation("conv-1", "OpenClaw debugging", "lattice-conv-conv-1");
+
+      const conversation = db.getConversation("conv-1");
+
+      expect(conversation).toBeDefined();
+      expect(conversation!.title).toBe("OpenClaw debugging");
+      expect(conversation!.summary).toBe("");
+      expect(conversation!.openclaw_session_key).toBe("lattice-conv-conv-1");
+    });
+
+    it("should list conversations with the most recently updated first", async () => {
+      db.insertConversation("conv-1", "First", "lattice-conv-conv-1");
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      db.insertConversation("conv-2", "Second", "lattice-conv-conv-2");
+
+      expect(db.listConversations().map((conversation) => conversation.id)).toEqual(["conv-2", "conv-1"]);
+    });
+
+    it("should update conversation title and summary", () => {
+      db.insertConversation("conv-1", "Original", "lattice-conv-conv-1");
+
+      db.updateConversation("conv-1", {
+        title: "Updated",
+        summary: "- User is debugging OpenClaw.",
+      });
+
+      const conversation = db.getConversation("conv-1")!;
+      expect(conversation.title).toBe("Updated");
+      expect(conversation.summary).toBe("- User is debugging OpenClaw.");
+    });
+
+    it("should insert and list conversation messages chronologically", async () => {
+      db.insertConversation("conv-1", "OpenClaw debugging", "lattice-conv-conv-1");
+      db.insertConversationMessage({
+        id: "msg-1",
+        conversationId: "conv-1",
+        role: "user",
+        content: "why did that fail?",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      db.insertConversationMessage({
+        id: "msg-2",
+        conversationId: "conv-1",
+        role: "agent",
+        agentName: "openclaw",
+        taskId: "task-1",
+        content: "Drive auth is missing.",
+      });
+
+      const messages = db.listConversationMessages("conv-1");
+
+      expect(messages.map((message) => message.id)).toEqual(["msg-1", "msg-2"]);
+      expect(messages[1].agent_name).toBe("openclaw");
+      expect(messages[1].task_id).toBe("task-1");
+    });
   });
 
   describe("routing_stats", () => {
