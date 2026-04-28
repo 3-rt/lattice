@@ -42,6 +42,8 @@ export interface Task {
     cost?: number;
     workflowId?: string;
     workflowStepId?: string;
+    conversationId?: string;
+    openclawSessionKey?: string;
   };
 }
 

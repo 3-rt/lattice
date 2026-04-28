@@ -22,8 +22,28 @@ export interface TaskRow {
   cost: number | null;
   workflow_id: string | null;
   workflow_step_id: string | null;
+  conversation_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ConversationRow {
+  id: string;
+  title: string;
+  summary: string;
+  openclaw_session_key: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationMessageRow {
+  id: string;
+  conversation_id: string;
+  role: string;
+  agent_name: string | null;
+  task_id: string | null;
+  content: string;
+  created_at: string;
 }
 
 export interface RoutingStatsRow {
@@ -60,6 +80,7 @@ export interface WorkflowRunUpdate {
 export interface TaskFilter {
   status?: string;
   assigned_agent?: string;
+  conversation_id?: string;
 }
 
 export interface TaskUpdate {
@@ -71,6 +92,21 @@ export interface TaskUpdate {
   cost?: number;
   workflow_id?: string;
   workflow_step_id?: string;
+  conversation_id?: string;
+}
+
+export interface ConversationUpdate {
+  title?: string;
+  summary?: string;
+}
+
+export interface ConversationMessageInput {
+  id: string;
+  conversationId: string;
+  role: string;
+  content: string;
+  agentName?: string;
+  taskId?: string;
 }
 
 export interface LatticeDB {
@@ -83,11 +119,19 @@ export interface LatticeDB {
   getAgent(name: string): AgentRow | undefined;
 
   // Task methods
-  insertTask(id: string, history: Message[]): void;
+  insertTask(id: string, history: Message[], conversationId?: string): void;
   getTask(id: string): TaskRow | undefined;
   updateTask(id: string, update: TaskUpdate): void;
   listTasks(filter?: TaskFilter): TaskRow[];
   updateTaskHistory(id: string, history: Message[]): void;
+
+  // Conversation methods
+  insertConversation(id: string, title: string, openclawSessionKey: string): void;
+  getConversation(id: string): ConversationRow | undefined;
+  listConversations(): ConversationRow[];
+  updateConversation(id: string, update: ConversationUpdate): void;
+  insertConversationMessage(input: ConversationMessageInput): void;
+  listConversationMessages(conversationId: string): ConversationMessageRow[];
 
   // Routing stats methods
   updateRoutingStats(
@@ -139,8 +183,28 @@ export function createDatabase(dbPath: string): LatticeDB {
       cost REAL,
       workflow_id TEXT,
       workflow_step_id TEXT,
+      conversation_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      openclaw_session_key TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS conversation_messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL REFERENCES conversations(id),
+      role TEXT NOT NULL,
+      agent_name TEXT,
+      task_id TEXT,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS routing_stats (
@@ -171,6 +235,11 @@ export function createDatabase(dbPath: string): LatticeDB {
     );
   `);
 
+  const taskColumns = sqlite.prepare(`PRAGMA table_info(tasks)`).all() as Array<{ name: string }>;
+  if (!taskColumns.some((col) => col.name === "conversation_id")) {
+    sqlite.exec(`ALTER TABLE tasks ADD COLUMN conversation_id TEXT`);
+  }
+
   // Prepared statements
   const stmts = {
     upsertAgent: sqlite.prepare(`
@@ -198,8 +267,8 @@ export function createDatabase(dbPath: string): LatticeDB {
     getAgent: sqlite.prepare(`SELECT * FROM agents WHERE name = ?`),
 
     insertTask: sqlite.prepare(`
-      INSERT INTO tasks (id, history, status)
-      VALUES (?, ?, 'submitted')
+      INSERT INTO tasks (id, history, status, conversation_id)
+      VALUES (?, ?, 'submitted', ?)
     `),
 
     getTask: sqlite.prepare(`SELECT * FROM tasks WHERE id = ?`),
@@ -210,8 +279,14 @@ export function createDatabase(dbPath: string): LatticeDB {
 
     listTasksByAgent: sqlite.prepare(`SELECT * FROM tasks WHERE assigned_agent = ?`),
 
+    listTasksByConversation: sqlite.prepare(`SELECT * FROM tasks WHERE conversation_id = ?`),
+
     listTasksByStatusAndAgent: sqlite.prepare(`
       SELECT * FROM tasks WHERE status = ? AND assigned_agent = ?
+    `),
+
+    listTasksByStatusAndConversation: sqlite.prepare(`
+      SELECT * FROM tasks WHERE status = ? AND conversation_id = ?
     `),
 
     updateTaskHistory: sqlite.prepare(`
@@ -230,6 +305,22 @@ export function createDatabase(dbPath: string): LatticeDB {
     `),
 
     getRoutingStats: sqlite.prepare(`SELECT * FROM routing_stats`),
+
+    insertConversation: sqlite.prepare(`
+      INSERT INTO conversations (id, title, openclaw_session_key)
+      VALUES (?, ?, ?)
+    `),
+    getConversation: sqlite.prepare(`SELECT * FROM conversations WHERE id = ?`),
+    listConversations: sqlite.prepare(`SELECT * FROM conversations ORDER BY updated_at DESC, created_at DESC`),
+    insertConversationMessage: sqlite.prepare(`
+      INSERT INTO conversation_messages (id, conversation_id, role, agent_name, task_id, content)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `),
+    listConversationMessages: sqlite.prepare(`
+      SELECT * FROM conversation_messages
+      WHERE conversation_id = ?
+      ORDER BY created_at ASC, id ASC
+    `),
 
     insertWorkflow: sqlite.prepare(`
       INSERT INTO workflows (id, name, definition) VALUES (?, ?, ?)
@@ -280,6 +371,10 @@ export function createDatabase(dbPath: string): LatticeDB {
       fields.push("workflow_step_id = ?");
       values.push(update.workflow_step_id);
     }
+    if (update.conversation_id !== undefined) {
+      fields.push("conversation_id = ?");
+      values.push(update.conversation_id);
+    }
 
     if (fields.length === 0) return;
 
@@ -288,6 +383,24 @@ export function createDatabase(dbPath: string): LatticeDB {
 
     const sql = `UPDATE tasks SET ${fields.join(", ")} WHERE id = ?`;
     sqlite.prepare(sql).run(...values);
+  }
+
+  function buildUpdateConversation(id: string, update: ConversationUpdate): void {
+    const fields: string[] = [];
+    const values: unknown[] = [];
+
+    if (update.title !== undefined) {
+      fields.push("title = ?");
+      values.push(update.title);
+    }
+    if (update.summary !== undefined) {
+      fields.push("summary = ?");
+      values.push(update.summary);
+    }
+    if (fields.length === 0) return;
+    fields.push("updated_at = datetime('now')");
+    values.push(id);
+    sqlite.prepare(`UPDATE conversations SET ${fields.join(", ")} WHERE id = ?`).run(...values);
   }
 
   return {
@@ -315,8 +428,8 @@ export function createDatabase(dbPath: string): LatticeDB {
       return stmts.getAgent.get(name) as AgentRow | undefined;
     },
 
-    insertTask(id: string, history: Message[]): void {
-      stmts.insertTask.run(id, JSON.stringify(history));
+    insertTask(id: string, history: Message[], conversationId?: string): void {
+      stmts.insertTask.run(id, JSON.stringify(history), conversationId ?? null);
     },
 
     getTask(id: string): TaskRow | undefined {
@@ -331,6 +444,12 @@ export function createDatabase(dbPath: string): LatticeDB {
       if (!filter) {
         return stmts.listTasks.all() as TaskRow[];
       }
+      if (filter.status && filter.conversation_id) {
+        return stmts.listTasksByStatusAndConversation.all(
+          filter.status,
+          filter.conversation_id
+        ) as TaskRow[];
+      }
       if (filter.status && filter.assigned_agent) {
         return stmts.listTasksByStatusAndAgent.all(
           filter.status,
@@ -342,6 +461,9 @@ export function createDatabase(dbPath: string): LatticeDB {
       }
       if (filter.assigned_agent) {
         return stmts.listTasksByAgent.all(filter.assigned_agent) as TaskRow[];
+      }
+      if (filter.conversation_id) {
+        return stmts.listTasksByConversation.all(filter.conversation_id) as TaskRow[];
       }
       return stmts.listTasks.all() as TaskRow[];
     },
@@ -371,6 +493,34 @@ export function createDatabase(dbPath: string): LatticeDB {
 
     getRoutingStats(): RoutingStatsRow[] {
       return stmts.getRoutingStats.all() as RoutingStatsRow[];
+    },
+
+    insertConversation(id: string, title: string, openclawSessionKey: string): void {
+      stmts.insertConversation.run(id, title, openclawSessionKey);
+    },
+    getConversation(id: string): ConversationRow | undefined {
+      return stmts.getConversation.get(id) as ConversationRow | undefined;
+    },
+    listConversations(): ConversationRow[] {
+      return stmts.listConversations.all() as ConversationRow[];
+    },
+    updateConversation(id: string, update: ConversationUpdate): void {
+      buildUpdateConversation(id, update);
+    },
+    insertConversationMessage(input: ConversationMessageInput): void {
+      stmts.insertConversationMessage.run(
+        input.id,
+        input.conversationId,
+        input.role,
+        input.agentName ?? null,
+        input.taskId ?? null,
+        input.content
+      );
+      buildUpdateConversation(input.conversationId, {});
+      sqlite.prepare(`UPDATE conversations SET updated_at = datetime('now') WHERE id = ?`).run(input.conversationId);
+    },
+    listConversationMessages(conversationId: string): ConversationMessageRow[] {
+      return stmts.listConversationMessages.all(conversationId) as ConversationMessageRow[];
     },
 
     insertWorkflow(id: string, name: string, definition: WorkflowDefinition): void {
