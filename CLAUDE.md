@@ -47,6 +47,7 @@ lattice/
 │   │   └── tests/               # 45 tests, all passing
 │   ├── cli/                # CLI tool (Phase 2)
 │   └── dashboard/          # React dashboard (Phase 2)
+├── insights/               # Standalone Python analytics service (FastAPI + TimescaleDB)
 ├── workflows/              # Pre-built workflow JSON files (Phase 3)
 ├── docs/
 │   ├── specs/              # Design spec

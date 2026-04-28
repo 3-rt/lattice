@@ -43,6 +43,7 @@ describe("dashboard shell foundation", () => {
     expect(html).toContain("app-canvas");
     expect(html).toContain("nav-link-active");
     expect(html).toContain("System link");
+    expect(html).toContain("Insights");
   });
 
   it("renders disconnected status copy in the sidebar footer", () => {

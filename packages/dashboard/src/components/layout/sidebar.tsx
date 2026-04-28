@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Activity, Layout, ListTodo, GitBranch } from "lucide-react";
+import { Activity, Layout, ListTodo, GitBranch, BarChart3 } from "lucide-react";
 import { useLatticeStore } from "../../store/lattice-store.ts";
 import { clsx } from "clsx";
 
@@ -13,6 +13,7 @@ const navItems: Array<{
   { to: "/flow", icon: Activity, label: "Live Flow" },
   { to: "/tasks", icon: ListTodo, label: "Tasks" },
   { to: "/workflows", icon: GitBranch, label: "Workflows" },
+  { to: "/insights", icon: BarChart3, label: "Insights" },
 ];
 
 export function Sidebar() {
@@ -68,9 +69,11 @@ export function Sidebar() {
                   ? "Roster and dispatch"
                   : item.to === "/flow"
                     ? "Real-time activity"
-                    : item.to === "/tasks"
+                  : item.to === "/tasks"
                       ? "History and routing"
-                      : "Build and run flows"}
+                      : item.to === "/workflows"
+                        ? "Build and run flows"
+                        : "Analytics and trends"}
               </span>
             </span>
             {item.disabled && (
